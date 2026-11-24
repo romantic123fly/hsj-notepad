@@ -238,6 +238,22 @@
     refreshStatus();
   }
 
+  /* 云同步用：是否有未保存内容 */
+  function isDirty() { return dirty; }
+
+  /* 云同步用：远端合并后按 storage 最新数据重填编辑器 */
+  function reloadCurrent() {
+    if (!currentNoteId) return;
+    var note = NotesApp.storage.getNoteById(currentNoteId);
+    if (!note) { handleDeleted(currentNoteId); return; }
+    titleInput.value = note.title || '';
+    bodyInput.value = note.content || '';
+    dirty = false;
+    lastSavedAt = note.updatedAt;
+    if (autosaveTimer) { clearTimeout(autosaveTimer); autosaveTimer = null; }
+    refreshStatus();
+  }
+
   function init() {
     titleInput = document.getElementById('note-title');
     bodyInput = document.getElementById('note-body');
@@ -275,6 +291,8 @@
     openNote: openNote,
     handleDeleted: handleDeleted,
     handleCleared: handleCleared,
+    isDirty: isDirty,
+    reloadCurrent: reloadCurrent,
     getCurrentNoteId: getCurrentNoteId
   };
 })();

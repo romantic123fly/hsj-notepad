@@ -97,6 +97,7 @@
     NotesApp.notes.init();
     NotesApp.history.init();
     NotesApp.converter.init();
+    if (NotesApp.cloud) NotesApp.cloud.init();
     initShortcuts();
 
     switchTab('notes');

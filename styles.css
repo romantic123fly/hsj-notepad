@@ -674,3 +674,23 @@ button { font-family: inherit; }
   .modal { padding: var(--space-5); }
   .btn { padding: 10px 14px; }  /* 触摸目标 ≥ 44px 高度 */
 }
+
+/* ============ 云同步（GitHub） ============ */
+.cloud-btn { gap: 6px; }
+.cloud-dot {
+  width: 7px; height: 7px; flex: none;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  transition: background .2s;
+}
+.cloud-dot.ok { background: var(--color-success); }
+.cloud-dot.err { background: var(--color-danger); }
+.cloud-dot.busy { background: var(--color-warning); animation: cloud-pulse 1s ease-in-out infinite; }
+@keyframes cloud-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+
+.cloud-form .form-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--space-3); }
+.cloud-form .form-row > label { font-size: var(--fs-sm); color: var(--color-text-secondary); }
+.cloud-form .input { width: 100%; box-sizing: border-box; }
+.cloud-check { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--color-text-secondary); margin: var(--space-2) 0 var(--space-3); cursor: pointer; }
+.cloud-status { font-size: var(--fs-sm); color: var(--color-text-secondary); min-height: 20px; margin-bottom: var(--space-3); }
+.cloud-note { font-size: var(--fs-xs); color: var(--color-text-muted); line-height: 1.5; }

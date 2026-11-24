@@ -1,10 +1,12 @@
 # 幻世界临时文本记录工具（记事本 + Markdown 转 Word）
 
-一个**纯前端、无后端、零构建**的网页端幻世界临时文本记录工具。双击 `index.html` 即可在浏览器中运行（`file://` 协议下完整可用），数据全部保存在本机浏览器的 `localStorage`。
+一个**纯前端、无后端、零构建**的网页端幻世界临时文本记录工具。双击 `index.html` 即可在浏览器中运行（`file://` 协议下完整可用），数据默认保存在本机浏览器的 `localStorage`；也可选开启**云同步**，把笔记存到你自己的 GitHub 仓库，换设备/换浏览器都能读回。
+
+**在线版**：<https://romantic123fly.github.io/hsj-notepad/>
 
 ## 如何运行
 
-直接双击项目根目录的 `index.html`（或在浏览器中打开该文件）即可使用，**无需联网、无需安装、无需服务器**。
+直接双击项目根目录的 `index.html`（或在浏览器中打开该文件）即可使用，**无需联网、无需安装、无需服务器**。也可以直接访问上面的在线版。
 
 ## 功能
 
@@ -12,6 +14,13 @@
    - 左侧目录列出全部已保存笔记（倒序：标题 / 无标题 / 时间 / 摘要），当前笔记高亮；点击某项即在右侧编辑器打开并直接编辑；每项带删除按钮（二次确认）；顶部「＋ 新建」、底部「清空全部」（输入 `DELETE` 强确认）、已用存储估算；无笔记时显示空状态引导新建。
    - 右侧编辑器：标题 + 正文 + 保存 + 状态栏（已保存 · 时间 · 字数）；新建 → 空白，保存 → 新增；打开某笔记后保存 → 更新该笔记；自动保存（编辑暂停 3 秒）与 `Ctrl+S` 保存、`Ctrl+N` 新建快捷键；放弃未保存内容有二次确认。
 2. **Markdown → Word**：源码编辑（约 A4 宽度）+ 实时预览（防抖 300ms，白色 A4 纸张样式）+ 示例加载 + 清空 + **一键复制预览区内容**（富文本 + 纯文本双通道，粘贴到 Word 保留格式、粘贴到记事本得纯文本）+ 一键导出 Word（`.doc`）；导出文件名为 `{首行标题或文档}_YYYYMMDD_HHmmss.doc`。
+3. **云同步（可选）**：点右上角「云同步」，填入你自己的 GitHub token 即可把笔记（连同删除记录）同步到仓库的 `data/notes.json`；换设备时同样填一次 token 就能读回。默认自动同步（保存后约 1.5 秒推送、启动时拉取），也可手动点「立即同步」。token 只存在本机浏览器，不会提交到仓库。
+
+## 云同步怎么配
+
+1. 打开 <https://github.com/settings/tokens> → **Tokens (classic)** → **Generate new token (classic)**，只勾 `repo` 权限（或改用 fine-grained token，给该仓库 **Contents: Read and write**）。
+2. 在应用里点「云同步」，粘贴 token，仓库填 `romantic123fly/hsj-notepad`（或你自己的 fork），保存配置。
+3. 点「立即同步」验证；之后保存笔记会自动推送。数据文件为仓库里的 `data/notes.json`（合并策略：按 `updatedAt` 新者胜，删除用墓碑防复活）。
 
 ## 技术实现
 
@@ -42,7 +51,10 @@
 │   ├── notes.js          # 记事本模块逻辑（新建/编辑/保存/打开/自动保存）
 │   ├── history.js      # 记事本左侧「切换目录」：列表/打开/删除/清空
 │   ├── converter.js      # Markdown→HTML→Word 转换与下载
+│   ├── cloud.js          # 云同步：GitHub Contents API 拉取/合并/推送
 │   └── ui.js             # 通用 UI：toast、确认弹窗、时间格式化、HTML 转义
+├── dist/
+│   └── hsj-notepad-standalone.html  # 单文件版（样式/脚本全部内联，可直接分发）
 ├── docs/
 │   ├── requirements.md   # PRD v1.0
 │   └── ui-design.md      # UI 设计文档
@@ -64,20 +76,19 @@
 
 本项目基于 [MIT License](LICENSE) 开源。
 
-## 发布到 GitHub
+## 在线访问与发布
 
-仓库已初始化并完成首次提交（分支 `main`），远端地址为 `git@github.com:romantic123fly/hsj-notepad.git`。
+- GitHub 仓库：<https://github.com/romantic123fly/hsj-notepad>
+- 在线版（GitHub Pages）：<https://romantic123fly.github.io/hsj-notepad/>
+- 单文件版（可下载分发）：`dist/hsj-notepad-standalone.html`
+
+推送到自己的仓库：
 
 ```bash
-git remote -v          # 确认远端
+git remote add origin https://github.com/romantic123fly/hsj-notepad.git
 git push -u origin main
 ```
 
-若使用 HTTPS 方式推送：
-
-```bash
-git remote set-url origin https://github.com/romantic123fly/hsj-notepad.git
-git push -u origin main
-```
+推送后在仓库 **Settings → Pages** 选择 `main` 分支根目录即可获得在线版；笔记云同步的数据会写在仓库的 `data/notes.json`。
 
 

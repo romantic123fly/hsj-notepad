@@ -21,6 +21,10 @@
     <button class="tab" data-tab="convert" id="tab-convert" role="tab" aria-selected="false" aria-controls="panel-convert" tabindex="-1">Markdown 转 Word</button>
   </nav>
 
+  <button class="btn btn-secondary btn-sm cloud-btn" id="btn-cloud" type="button" title="GitHub 云同步：把笔记存到自己的仓库">
+    <span class="cloud-dot" id="cloud-dot"></span>云同步
+  </button>
+
   <label class="theme-toggle" title="切换亮/暗主题">
     <span>暗色</span>
     <input type="checkbox" id="theme-switch">
@@ -101,7 +105,7 @@
 
 </main>
 
-<footer class="app-footer">数据仅保存在本机浏览器（localStorage），清除浏览器站点数据会导致笔记丢失。</footer>
+<footer class="app-footer">数据默认保存在本机浏览器（localStorage）；配置「云同步」后，笔记会同时存到你自己的 GitHub 仓库，换设备输 token 即可读回。</footer>
 
 <div class="toast-container" id="toast-container" aria-live="polite"></div>
 <div class="modal-root" id="modal-root"></div>
@@ -112,6 +116,7 @@
 <script src="js/notes.js"></script>
 <script src="js/history.js"></script>
 <script src="js/converter.js"></script>
+<script src="js/cloud.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

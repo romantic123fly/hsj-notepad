@@ -1,0 +1,2616 @@
+<!DOCTYPE html>
+<!-- 单文件构建：所有 CSS/JS（含 marked）已内联，可离线双击运行 -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>幻世界临时文本记录工具</title>
+<style>
+/* ============ 设计变量（与 docs/ui-design.md、design/mockup.html 保持一致） ============ */
+:root {
+  --color-bg:            #f6f7f9;
+  --color-surface:       #ffffff;
+  --color-surface-alt:   #f1f3f5;
+
+  --color-primary:       #4a6cf7;
+  --color-primary-hover: #3a5bd9;
+  --color-primary-soft:  #eef1fe;
+
+  --color-text:          #1f2329;
+  --color-text-secondary:#5c6370;
+  --color-text-muted:    #9aa1ab;
+
+  --color-border:        #e5e7eb;
+  --color-border-strong: #d0d4db;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08);
+
+  --color-success:       #16a34a;
+  --color-success-soft:  #e7f6ec;
+  --color-warning:       #d97706;
+  --color-warning-soft:  #fdf1df;
+  --color-danger:        #dc2626;
+  --color-danger-soft:   #fdeaea;
+
+  --color-overlay: rgba(15, 23, 42, 0.45);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI",
+               "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+               "Noto Sans CJK SC", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", "Fira Code", Consolas,
+               "Liberation Mono", "Courier New", monospace;
+
+  --fs-xs:   12px;
+  --fs-sm:   13px;
+  --fs-base: 14px;
+  --fs-lg:   16px;
+  --fs-xl:   20px;
+  --fs-2xl:  24px;
+
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+
+  --radius-sm:  6px;
+  --radius-md:  8px;
+  --radius-lg:  12px;
+
+  --line-base:  1.6;
+  --line-title: 1.3;
+}
+
+html[data-theme="dark"] {
+  --color-bg:            #0f1115;
+  --color-surface:       #171a20;
+  --color-surface-alt:   #1f232b;
+
+  --color-primary:       #6c8dff;
+  --color-primary-hover: #8aa2ff;
+  --color-primary-soft:  #232a45;
+
+  --color-text:          #e8eaed;
+  --color-text-secondary:#b6bcc6;
+  --color-text-muted:    #7a818c;
+
+  --color-border:        #2a2f38;
+  --color-border-strong: #3a414c;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+  --color-success:       #22c55e;
+  --color-success-soft:  #14271c;
+  --color-warning:       #f59e0b;
+  --color-warning-soft:  #2b2010;
+  --color-danger:        #f87171;
+  --color-danger-soft:   #3a2326;
+
+  --color-overlay: rgba(0, 0, 0, 0.6);
+}
+
+/* ============ 基础重置 ============ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+/* 全局兜底：带 hidden 属性的元素强制隐藏，防止自身 display 样式（如目录的 flex）覆盖 */
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--line-base);
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+}
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+button { font-family: inherit; }
+
+/* ============ 顶栏 ============ */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 0 var(--space-6);
+  height: 56px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.app-brand .logo {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  background: var(--color-primary);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex: none;
+}
+.app-brand .logo svg { display: block; }
+
+.tabs { display: flex; gap: var(--space-1); flex: 1; }
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: var(--fs-base);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  transition: color .15s, background .15s;
+}
+.tab:hover { color: var(--color-text); background: var(--color-surface-alt); }
+.tab:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+.tab.active { color: var(--color-primary); }
+.tab.active::after {
+  content: "";
+  position: absolute;
+  left: 14px; right: 14px; bottom: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-primary);
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.theme-toggle input { display: none; }
+.theme-toggle .switch {
+  width: 38px; height: 20px;
+  border-radius: 999px;
+  background: var(--color-border-strong);
+  position: relative;
+  transition: background .2s;
+}
+.theme-toggle .switch::after {
+  content: "";
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,.25);
+  transition: transform .2s;
+}
+.theme-toggle input:checked + .switch { background: var(--color-primary); }
+.theme-toggle input:checked + .switch::after { transform: translateX(18px); }
+
+/* ============ 主体 ============ */
+.app-main {
+  max-width: 1700px;
+  margin: 0 auto;
+  padding: var(--space-6);
+}
+.panel-notes { max-width: 1200px; margin: 0 auto; }
+.panel { animation: fade .2s ease; }
+.panel[hidden] { display: none; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.app-footer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-6) var(--space-6);
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ============ 通用组件 ============ */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: var(--fs-base);
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s, transform .05s;
+  white-space: nowrap;
+}
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn-primary { background: var(--color-primary); color: #fff; }
+.btn-primary:hover { background: var(--color-primary-hover); }
+.btn-secondary { background: var(--color-surface); color: var(--color-text); border-color: var(--color-border); }
+.btn-secondary:hover { background: var(--color-surface-alt); }
+.btn-ghost { background: transparent; color: var(--color-primary); }
+.btn-ghost:hover { background: var(--color-primary-soft); }
+.btn-danger { background: var(--color-surface); color: var(--color-danger); border-color: var(--color-border); }
+.btn-danger:hover { background: var(--color-danger-soft); }
+.btn-sm { padding: 5px 12px; font-size: var(--fs-sm); }
+
+.input, .textarea {
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font-size: var(--fs-base);
+  color: var(--color-text);
+  font-family: inherit;
+  line-height: var(--line-base);
+  transition: border-color .15s, box-shadow .15s;
+}
+.input:focus, .textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+/* Toast */
+.toast-container {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-end;
+  pointer-events: none;
+}
+.toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-success);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 10px 16px;
+  font-size: var(--fs-base);
+  color: var(--color-text);
+  max-width: 80vw;
+  animation: toast-in .2s ease;
+}
+@keyframes toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.toast .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-success); flex: none; }
+.toast.success { border-left-color: var(--color-success); }
+.toast.success .dot { background: var(--color-success); }
+.toast.error { border-left-color: var(--color-danger); }
+.toast.error .dot { background: var(--color-danger); }
+.toast.info { border-left-color: var(--color-primary); }
+.toast.info .dot { background: var(--color-primary); }
+
+/* 弹窗 */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: var(--color-overlay);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+  padding: var(--space-4);
+}
+.modal {
+  width: 400px; max-width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-6);
+}
+.modal h3 { font-size: var(--fs-lg); margin-bottom: var(--space-3); }
+.modal h3.danger { color: var(--color-danger); }
+.modal p { color: var(--color-text-secondary); margin-bottom: var(--space-4); }
+.modal .modal-body {
+  color: var(--color-text);
+  margin-bottom: var(--space-4);
+  overflow: auto;
+  font-size: var(--fs-base);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.modal .modal-body.mono { font-family: var(--font-mono); font-size: var(--fs-sm); }
+.modal .modal-meta { font-size: var(--fs-xs); color: var(--color-text-muted); margin-bottom: var(--space-3); }
+.modal .confirm-input { margin-bottom: var(--space-4); }
+.modal .actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+
+/* ============ 模块一：记事本（左侧目录 + 右侧编辑器） ============ */
+.notes-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+/* 左侧目录 */
+.directory {
+  width: 280px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  max-height: calc(100vh - 88px);
+  position: sticky;
+  top: 72px;
+  overflow: hidden;
+}
+.directory-head {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+.directory-head .btn { width: 100%; justify-content: center; }
+.directory-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.directory-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-4);
+  color: var(--color-text-muted);
+}
+.directory-empty .icon { font-size: 32px; margin-bottom: var(--space-2); opacity: .5; }
+.directory-empty .t1 { font-size: var(--fs-base); font-weight: 600; color: var(--color-text-secondary); margin-bottom: var(--space-1); }
+.directory-empty .t2 { font-size: var(--fs-xs); }
+.directory-foot {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.directory-foot .storage-hint { font-size: var(--fs-xs); color: var(--color-text-muted); }
+
+.note-item {
+  position: relative;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  background: transparent;
+  transition: background .15s;
+}
+.note-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background .15s;
+}
+.note-item:hover { background: var(--color-surface-alt); }
+.note-item.active { background: var(--color-primary-soft); }
+.note-item.active::before { background: var(--color-primary); }
+.note-item .row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.note-item .n-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  line-height: var(--line-title);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-item .n-title.untitled { color: var(--color-text-muted); font-weight: 400; }
+.note-item .n-del {
+  flex: none;
+  width: 20px; height: 20px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: background .15s, color .15s, opacity .15s;
+}
+.note-item:hover .n-del,
+.note-item:focus-within .n-del { opacity: 1; pointer-events: auto; }
+.note-item .n-del:hover { background: var(--color-danger-soft); color: var(--color-danger); }
+.note-item .n-time {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+}
+
+/* 右侧编辑器 */
+.editor { flex: 1; min-width: 0; padding: var(--space-6); }
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-5);
+}
+.note-title {
+  border: none;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--color-text);
+  padding: 4px 0;
+  margin-bottom: var(--space-4);
+  background: transparent;
+}
+.note-title:focus { box-shadow: none; border-bottom-color: var(--color-primary); }
+.note-body {
+  min-height: 320px;
+  resize: vertical;
+  font-family: inherit;
+  background: var(--color-surface);
+}
+.status-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--fs-xs);
+  color: var(--color-text-secondary);
+}
+.status-bar .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-success);
+}
+.status-bar .badge::before { content: "✓"; font-weight: 700; }
+.status-bar .badge.saved { color: var(--color-success); }
+.status-bar .badge.saved::before { content: "✓"; }
+.status-bar .badge.dirty { color: var(--color-warning); }
+.status-bar .badge.dirty::before { content: "●"; }
+.status-bar .time { font-family: var(--font-mono); color: var(--color-text-muted); }
+
+/* ============ 模块二：Markdown → Word（A4 纸张预览） ============ */
+.convert-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+.convert-toolbar .spacer { flex: 1; }
+.convert-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 794px));
+  justify-content: center;
+  gap: var(--space-6);
+}
+.convert-pane {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.pane-label {
+  padding: 8px 14px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: var(--color-surface-alt);
+  border-bottom: 1px solid var(--color-border);
+  flex: none;
+}
+.md-source {
+  flex: 1;
+  min-height: 800px;
+  border: none;
+  border-radius: 0;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  background: var(--color-surface);
+  padding: var(--space-4);
+}
+.md-source:focus { box-shadow: none; border: none; }
+
+/* 预览：灰底上居中一张白色 A4 纸张 */
+.preview-wrap {
+  flex: 1;
+  background: var(--color-bg);
+  overflow: auto;
+  padding: var(--space-6);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.preview.page {
+  width: 100%;
+  max-width: 794px;
+  min-height: 800px;
+  background: #ffffff;
+  color: #1f2329;
+  padding: 96px;
+  box-shadow: 0 1px 3px rgba(16,24,40,.12), 0 10px 30px rgba(16,24,40,.10);
+  word-break: break-word;
+}
+.preview.is-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9aa1ab;
+  font-size: var(--fs-sm);
+}
+/* 纸张内排版（固定浅色，不随暗色主题变化） */
+.preview.page h1 { font-size: 26px; line-height: 1.3; margin: 16px 0 12px; color: #1f2329; }
+.preview.page h2 { font-size: 21px; line-height: 1.3; margin: 20px 0 8px; color: #1f2329; }
+.preview.page h3 { font-size: 17px; margin: 16px 0 8px; color: #1f2329; }
+.preview.page p { margin: 8px 0; color: #1f2329; }
+.preview.page ul, .preview.page ol { margin: 8px 0; padding-left: 24px; color: #1f2329; }
+.preview.page li { margin: 2px 0; }
+.preview.page code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: #eef1fe;
+  color: #4a6cf7;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.preview.page pre {
+  background: #f1f3f5;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px 16px;
+  overflow: auto;
+  margin: 12px 0;
+  color: #1f2329;
+}
+.preview.page pre code { background: none; color: #1f2329; padding: 0; }
+.preview.page table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+.preview.page th, .preview.page td { border: 1px solid #d0d4db; padding: 6px 12px; text-align: left; font-size: 13px; color: #1f2329; }
+.preview.page th { background: #f1f3f5; font-weight: 600; }
+.preview.page blockquote {
+  border-left: 3px solid #4a6cf7;
+  background: #eef1fe;
+  padding: 8px 16px;
+  margin: 12px 0;
+  color: #5c6370;
+  border-radius: 0 6px 6px 0;
+}
+.preview.page a { color: #4a6cf7; }
+.preview.page img { max-width: 100%; height: auto; }
+.preview.page hr { border: none; border-top: 1px solid #e5e7eb; margin: 16px 0; }
+.filename-hint {
+  margin-top: var(--space-3);
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ============ 响应式 ============ */
+@media (max-width: 1023px) {
+  .convert-grid { grid-template-columns: minmax(0, 794px); }
+}
+@media (max-width: 768px) {
+  .app-header { padding: 0 var(--space-4); gap: var(--space-3); }
+  .app-brand { font-size: var(--fs-base); }
+  .app-brand .logo { width: 22px; height: 22px; font-size: 12px; }
+  .tab { padding: 8px 8px; font-size: var(--fs-sm); }
+  .theme-toggle > span:first-child { display: none; }  /* 隐藏「暗色」文字，仅留开关 */
+  .app-main { padding: var(--space-4); }
+  .app-footer { padding: 0 var(--space-4) var(--space-4); }
+
+  /* 记事本：目录移到编辑器上方 */
+  .notes-layout { flex-direction: column; }
+  .directory { width: 100%; max-height: none; position: static; }
+  .directory-list { max-height: 40vh; }
+  .directory-empty { padding: var(--space-5); }
+  .editor { padding: var(--space-4); }
+  .note-body { min-height: 220px; }
+
+  /* 转换：源码/预览收窄，缩小纸张内边距 */
+  .md-source { min-height: 360px; }
+  .preview.page { min-height: 360px; padding: 24px; }
+  .preview-wrap { padding: var(--space-3); }
+
+  .toast-container {
+    right: var(--space-4); left: var(--space-4);
+    bottom: var(--space-4);
+    align-items: stretch;
+  }
+  .toast { max-width: none; }
+  .modal { padding: var(--space-5); }
+  .btn { padding: 10px 14px; }  /* 触摸目标 ≥ 44px 高度 */
+}
+
+/* ============ 云同步（GitHub） ============ */
+.cloud-btn { gap: 6px; }
+.cloud-dot {
+  width: 7px; height: 7px; flex: none;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  transition: background .2s;
+}
+.cloud-dot.ok { background: var(--color-success); }
+.cloud-dot.err { background: var(--color-danger); }
+.cloud-dot.busy { background: var(--color-warning); animation: cloud-pulse 1s ease-in-out infinite; }
+@keyframes cloud-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+
+.cloud-form .form-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--space-3); }
+.cloud-form .form-row > label { font-size: var(--fs-sm); color: var(--color-text-secondary); }
+.cloud-form .input { width: 100%; box-sizing: border-box; }
+.cloud-check { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--color-text-secondary); margin: var(--space-2) 0 var(--space-3); cursor: pointer; }
+.cloud-status { font-size: var(--fs-sm); color: var(--color-text-secondary); min-height: 20px; margin-bottom: var(--space-3); }
+.cloud-note { font-size: var(--fs-xs); color: var(--color-text-muted); line-height: 1.5; }
+
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-brand">
+    <span class="logo" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    </span>
+    幻世界临时文本记录工具
+  </div>
+
+  <nav class="tabs" role="tablist" aria-label="模块导航">
+    <button class="tab active" data-tab="notes" id="tab-notes" role="tab" aria-selected="true" aria-controls="panel-notes">记事本</button>
+    <button class="tab" data-tab="convert" id="tab-convert" role="tab" aria-selected="false" aria-controls="panel-convert" tabindex="-1">Markdown 转 Word</button>
+  </nav>
+
+  <button class="btn btn-secondary btn-sm cloud-btn" id="btn-cloud" type="button" title="GitHub 云同步：把笔记存到自己的仓库">
+    <span class="cloud-dot" id="cloud-dot"></span>云同步
+  </button>
+
+  <label class="theme-toggle" title="切换亮/暗主题">
+    <span>暗色</span>
+    <input type="checkbox" id="theme-switch">
+    <span class="switch"></span>
+  </label>
+</header>
+
+<main class="app-main">
+
+  <!-- ===== 模块一：记事本（左侧目录 + 右侧编辑器） ===== -->
+  <section class="panel active panel-notes" data-panel="notes" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes">
+    <div class="notes-layout">
+      <aside class="directory">
+        <div class="directory-head">
+          <button class="btn btn-primary" id="btn-new" type="button">＋ 新建</button>
+        </div>
+
+        <div class="directory-list" id="note-list"></div>
+
+        <div class="directory-empty" id="note-empty" hidden>
+          <div class="icon" aria-hidden="true">📝</div>
+          <div class="t1">暂无笔记</div>
+          <div class="t2">点击上方「＋ 新建」开始记录</div>
+        </div>
+
+        <div class="directory-foot">
+          <span class="storage-hint" id="directory-storage-hint"></span>
+          <button class="btn btn-danger btn-sm" id="btn-clear-all" type="button">清空全部</button>
+        </div>
+      </aside>
+
+      <div class="editor card">
+        <div class="toolbar">
+          <button class="btn btn-primary" id="btn-save" type="button">保存</button>
+        </div>
+
+        <label class="sr-only" for="note-title">标题</label>
+        <input class="input note-title" id="note-title" type="text" placeholder="无标题" autocomplete="off">
+
+        <label class="sr-only" for="note-body">正文</label>
+        <textarea class="textarea note-body" id="note-body" placeholder="在这里输入正文…"></textarea>
+
+        <div class="status-bar" id="notes-status">
+          <span class="badge saved" id="notes-status-badge">已保存</span>
+          <span class="time" id="notes-status-time"></span>
+          <span id="notes-status-count">· 0 字</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 模块二：Markdown → Word ===== -->
+  <section class="panel panel-convert" data-panel="convert" id="panel-convert" role="tabpanel" aria-labelledby="tab-convert" hidden>
+    <div class="convert-toolbar">
+      <button class="btn btn-secondary btn-sm" id="btn-example" type="button">示例</button>
+      <button class="btn btn-secondary btn-sm" id="btn-convert-clear" type="button">清空</button>
+      <button class="btn btn-secondary btn-sm" id="btn-preview" type="button">预览</button>
+      <button class="btn btn-secondary btn-sm" id="btn-copy-preview" type="button">复制</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" id="btn-export" type="button">导出 Word (.doc)</button>
+    </div>
+
+    <div class="convert-grid">
+      <div class="convert-pane">
+        <div class="pane-label">Markdown 源码</div>
+        <textarea class="textarea md-source" id="md-source" placeholder="在这里输入或粘贴 Markdown…"></textarea>
+      </div>
+      <div class="convert-pane">
+        <div class="pane-label">预览</div>
+        <div class="preview-wrap">
+          <div class="preview page" id="md-preview"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="filename-hint" id="filename-hint"></div>
+  </section>
+
+</main>
+
+<footer class="app-footer">数据默认保存在本机浏览器（localStorage）；配置「云同步」后，笔记会同时存到你自己的 GitHub 仓库，换设备输 token 即可读回。</footer>
+
+<div class="toast-container" id="toast-container" aria-live="polite"></div>
+<div class="modal-root" id="modal-root"></div>
+
+<script>
+/**
+ * marked v15.0.12 - a markdown parser
+ * Copyright (c) 2011-2025, Christopher Jeffrey. (MIT Licensed)
+ * https://github.com/markedjs/marked
+ */
+
+/**
+ * DO NOT EDIT THIS FILE
+ * The code in this file is generated from files in ./src/
+ */
+(function(g,f){if(typeof exports=="object"&&typeof module<"u"){module.exports=f()}else if("function"==typeof define && define.amd){define("marked",f)}else {g["marked"]=f()}}(typeof globalThis < "u" ? globalThis : typeof self < "u" ? self : this,function(){var exports={};var __exports=exports;var module={exports};
+"use strict";var H=Object.defineProperty;var be=Object.getOwnPropertyDescriptor;var Te=Object.getOwnPropertyNames;var we=Object.prototype.hasOwnProperty;var ye=(l,e)=>{for(var t in e)H(l,t,{get:e[t],enumerable:!0})},Re=(l,e,t,n)=>{if(e&&typeof e=="object"||typeof e=="function")for(let s of Te(e))!we.call(l,s)&&s!==t&&H(l,s,{get:()=>e[s],enumerable:!(n=be(e,s))||n.enumerable});return l};var Se=l=>Re(H({},"__esModule",{value:!0}),l);var kt={};ye(kt,{Hooks:()=>L,Lexer:()=>x,Marked:()=>E,Parser:()=>b,Renderer:()=>$,TextRenderer:()=>_,Tokenizer:()=>S,defaults:()=>w,getDefaults:()=>z,lexer:()=>ht,marked:()=>k,options:()=>it,parse:()=>pt,parseInline:()=>ct,parser:()=>ut,setOptions:()=>ot,use:()=>lt,walkTokens:()=>at});module.exports=Se(kt);function z(){return{async:!1,breaks:!1,extensions:null,gfm:!0,hooks:null,pedantic:!1,renderer:null,silent:!1,tokenizer:null,walkTokens:null}}var w=z();function N(l){w=l}var I={exec:()=>null};function h(l,e=""){let t=typeof l=="string"?l:l.source,n={replace:(s,i)=>{let r=typeof i=="string"?i:i.source;return r=r.replace(m.caret,"$1"),t=t.replace(s,r),n},getRegex:()=>new RegExp(t,e)};return n}var m={codeRemoveIndent:/^(?: {1,4}| {0,3}\t)/gm,outputLinkReplace:/\\([\[\]])/g,indentCodeCompensation:/^(\s+)(?:```)/,beginningSpace:/^\s+/,endingHash:/#$/,startingSpaceChar:/^ /,endingSpaceChar:/ $/,nonSpaceChar:/[^ ]/,newLineCharGlobal:/\n/g,tabCharGlobal:/\t/g,multipleSpaceGlobal:/\s+/g,blankLine:/^[ \t]*$/,doubleBlankLine:/\n[ \t]*\n[ \t]*$/,blockquoteStart:/^ {0,3}>/,blockquoteSetextReplace:/\n {0,3}((?:=+|-+) *)(?=\n|$)/g,blockquoteSetextReplace2:/^ {0,3}>[ \t]?/gm,listReplaceTabs:/^\t+/,listReplaceNesting:/^ {1,4}(?=( {4})*[^ ])/g,listIsTask:/^\[[ xX]\] /,listReplaceTask:/^\[[ xX]\] +/,anyLine:/\n.*\n/,hrefBrackets:/^<(.*)>$/,tableDelimiter:/[:|]/,tableAlignChars:/^\||\| *$/g,tableRowBlankLine:/\n[ \t]*$/,tableAlignRight:/^ *-+: *$/,tableAlignCenter:/^ *:-+: *$/,tableAlignLeft:/^ *:-+ *$/,startATag:/^<a /i,endATag:/^<\/a>/i,startPreScriptTag:/^<(pre|code|kbd|script)(\s|>)/i,endPreScriptTag:/^<\/(pre|code|kbd|script)(\s|>)/i,startAngleBracket:/^</,endAngleBracket:/>$/,pedanticHrefTitle:/^([^'"]*[^\s])\s+(['"])(.*)\2/,unicodeAlphaNumeric:/[\p{L}\p{N}]/u,escapeTest:/[&<>"']/,escapeReplace:/[&<>"']/g,escapeTestNoEncode:/[<>"']|&(?!(#\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\w+);)/,escapeReplaceNoEncode:/[<>"']|&(?!(#\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\w+);)/g,unescapeTest:/&(#(?:\d+)|(?:#x[0-9A-Fa-f]+)|(?:\w+));?/ig,caret:/(^|[^\[])\^/g,percentDecode:/%25/g,findPipe:/\|/g,splitPipe:/ \|/,slashPipe:/\\\|/g,carriageReturn:/\r\n|\r/g,spaceLine:/^ +$/gm,notSpaceStart:/^\S*/,endingNewline:/\n$/,listItemRegex:l=>new RegExp(`^( {0,3}${l})((?:[	 ][^\\n]*)?(?:\\n|$))`),nextBulletRegex:l=>new RegExp(`^ {0,${Math.min(3,l-1)}}(?:[*+-]|\\d{1,9}[.)])((?:[ 	][^\\n]*)?(?:\\n|$))`),hrRegex:l=>new RegExp(`^ {0,${Math.min(3,l-1)}}((?:- *){3,}|(?:_ *){3,}|(?:\\* *){3,})(?:\\n+|$)`),fencesBeginRegex:l=>new RegExp(`^ {0,${Math.min(3,l-1)}}(?:\`\`\`|~~~)`),headingBeginRegex:l=>new RegExp(`^ {0,${Math.min(3,l-1)}}#`),htmlBeginRegex:l=>new RegExp(`^ {0,${Math.min(3,l-1)}}<(?:[a-z].*>|!--)`,"i")},$e=/^(?:[ \t]*(?:\n|$))+/,_e=/^((?: {4}| {0,3}\t)[^\n]+(?:\n(?:[ \t]*(?:\n|$))*)?)+/,Le=/^ {0,3}(`{3,}(?=[^`\n]*(?:\n|$))|~{3,})([^\n]*)(?:\n|$)(?:|([\s\S]*?)(?:\n|$))(?: {0,3}\1[~`]* *(?=\n|$)|$)/,O=/^ {0,3}((?:-[\t ]*){3,}|(?:_[ \t]*){3,}|(?:\*[ \t]*){3,})(?:\n+|$)/,ze=/^ {0,3}(#{1,6})(?=\s|$)(.*)(?:\n+|$)/,F=/(?:[*+-]|\d{1,9}[.)])/,ie=/^(?!bull |blockCode|fences|blockquote|heading|html|table)((?:.|\n(?!\s*?\n|bull |blockCode|fences|blockquote|heading|html|table))+?)\n {0,3}(=+|-+) *(?:\n+|$)/,oe=h(ie).replace(/bull/g,F).replace(/blockCode/g,/(?: {4}| {0,3}\t)/).replace(/fences/g,/ {0,3}(?:`{3,}|~{3,})/).replace(/blockquote/g,/ {0,3}>/).replace(/heading/g,/ {0,3}#{1,6}/).replace(/html/g,/ {0,3}<[^\n>]+>\n/).replace(/\|table/g,"").getRegex(),Me=h(ie).replace(/bull/g,F).replace(/blockCode/g,/(?: {4}| {0,3}\t)/).replace(/fences/g,/ {0,3}(?:`{3,}|~{3,})/).replace(/blockquote/g,/ {0,3}>/).replace(/heading/g,/ {0,3}#{1,6}/).replace(/html/g,/ {0,3}<[^\n>]+>\n/).replace(/table/g,/ {0,3}\|?(?:[:\- ]*\|)+[\:\- ]*\n/).getRegex(),Q=/^([^\n]+(?:\n(?!hr|heading|lheading|blockquote|fences|list|html|table| +\n)[^\n]+)*)/,Pe=/^[^\n]+/,U=/(?!\s*\])(?:\\.|[^\[\]\\])+/,Ae=h(/^ {0,3}\[(label)\]: *(?:\n[ \t]*)?([^<\s][^\s]*|<.*?>)(?:(?: +(?:\n[ \t]*)?| *\n[ \t]*)(title))? *(?:\n+|$)/).replace("label",U).replace("title",/(?:"(?:\\"?|[^"\\])*"|'[^'\n]*(?:\n[^'\n]+)*\n?'|\([^()]*\))/).getRegex(),Ee=h(/^( {0,3}bull)([ \t][^\n]+?)?(?:\n|$)/).replace(/bull/g,F).getRegex(),v="address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul",K=/<!--(?:-?>|[\s\S]*?(?:-->|$))/,Ce=h("^ {0,3}(?:<(script|pre|style|textarea)[\\s>][\\s\\S]*?(?:</\\1>[^\\n]*\\n+|$)|comment[^\\n]*(\\n+|$)|<\\?[\\s\\S]*?(?:\\?>\\n*|$)|<![A-Z][\\s\\S]*?(?:>\\n*|$)|<!\\[CDATA\\[[\\s\\S]*?(?:\\]\\]>\\n*|$)|</?(tag)(?: +|\\n|/?>)[\\s\\S]*?(?:(?:\\n[ 	]*)+\\n|$)|<(?!script|pre|style|textarea)([a-z][\\w-]*)(?:attribute)*? */?>(?=[ \\t]*(?:\\n|$))[\\s\\S]*?(?:(?:\\n[ 	]*)+\\n|$)|</(?!script|pre|style|textarea)[a-z][\\w-]*\\s*>(?=[ \\t]*(?:\\n|$))[\\s\\S]*?(?:(?:\\n[ 	]*)+\\n|$))","i").replace("comment",K).replace("tag",v).replace("attribute",/ +[a-zA-Z:_][\w.:-]*(?: *= *"[^"\n]*"| *= *'[^'\n]*'| *= *[^\s"'=<>`]+)?/).getRegex(),le=h(Q).replace("hr",O).replace("heading"," {0,3}#{1,6}(?:\\s|$)").replace("|lheading","").replace("|table","").replace("blockquote"," {0,3}>").replace("fences"," {0,3}(?:`{3,}(?=[^`\\n]*\\n)|~{3,})[^\\n]*\\n").replace("list"," {0,3}(?:[*+-]|1[.)]) ").replace("html","</?(?:tag)(?: +|\\n|/?>)|<(?:script|pre|style|textarea|!--)").replace("tag",v).getRegex(),Ie=h(/^( {0,3}> ?(paragraph|[^\n]*)(?:\n|$))+/).replace("paragraph",le).getRegex(),X={blockquote:Ie,code:_e,def:Ae,fences:Le,heading:ze,hr:O,html:Ce,lheading:oe,list:Ee,newline:$e,paragraph:le,table:I,text:Pe},re=h("^ *([^\\n ].*)\\n {0,3}((?:\\| *)?:?-+:? *(?:\\| *:?-+:? *)*(?:\\| *)?)(?:\\n((?:(?! *\\n|hr|heading|blockquote|code|fences|list|html).*(?:\\n|$))*)\\n*|$)").replace("hr",O).replace("heading"," {0,3}#{1,6}(?:\\s|$)").replace("blockquote"," {0,3}>").replace("code","(?: {4}| {0,3}	)[^\\n]").replace("fences"," {0,3}(?:`{3,}(?=[^`\\n]*\\n)|~{3,})[^\\n]*\\n").replace("list"," {0,3}(?:[*+-]|1[.)]) ").replace("html","</?(?:tag)(?: +|\\n|/?>)|<(?:script|pre|style|textarea|!--)").replace("tag",v).getRegex(),Oe={...X,lheading:Me,table:re,paragraph:h(Q).replace("hr",O).replace("heading"," {0,3}#{1,6}(?:\\s|$)").replace("|lheading","").replace("table",re).replace("blockquote"," {0,3}>").replace("fences"," {0,3}(?:`{3,}(?=[^`\\n]*\\n)|~{3,})[^\\n]*\\n").replace("list"," {0,3}(?:[*+-]|1[.)]) ").replace("html","</?(?:tag)(?: +|\\n|/?>)|<(?:script|pre|style|textarea|!--)").replace("tag",v).getRegex()},Be={...X,html:h(`^ *(?:comment *(?:\\n|\\s*$)|<(tag)[\\s\\S]+?</\\1> *(?:\\n{2,}|\\s*$)|<tag(?:"[^"]*"|'[^']*'|\\s[^'"/>\\s]*)*?/?> *(?:\\n{2,}|\\s*$))`).replace("comment",K).replace(/tag/g,"(?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\b)\\w+(?!:|[^\\w\\s@]*@)\\b").getRegex(),def:/^ *\[([^\]]+)\]: *<?([^\s>]+)>?(?: +(["(][^\n]+[")]))? *(?:\n+|$)/,heading:/^(#{1,6})(.*)(?:\n+|$)/,fences:I,lheading:/^(.+?)\n {0,3}(=+|-+) *(?:\n+|$)/,paragraph:h(Q).replace("hr",O).replace("heading",` *#{1,6} *[^
+]`).replace("lheading",oe).replace("|table","").replace("blockquote"," {0,3}>").replace("|fences","").replace("|list","").replace("|html","").replace("|tag","").getRegex()},qe=/^\\([!"#$%&'()*+,\-./:;<=>?@\[\]\\^_`{|}~])/,ve=/^(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)/,ae=/^( {2,}|\\)\n(?!\s*$)/,De=/^(`+|[^`])(?:(?= {2,}\n)|[\s\S]*?(?:(?=[\\<!\[`*_]|\b_|$)|[^ ](?= {2,}\n)))/,D=/[\p{P}\p{S}]/u,W=/[\s\p{P}\p{S}]/u,ce=/[^\s\p{P}\p{S}]/u,Ze=h(/^((?![*_])punctSpace)/,"u").replace(/punctSpace/g,W).getRegex(),pe=/(?!~)[\p{P}\p{S}]/u,Ge=/(?!~)[\s\p{P}\p{S}]/u,He=/(?:[^\s\p{P}\p{S}]|~)/u,Ne=/\[[^[\]]*?\]\((?:\\.|[^\\\(\)]|\((?:\\.|[^\\\(\)])*\))*\)|`[^`]*?`|<[^<>]*?>/g,ue=/^(?:\*+(?:((?!\*)punct)|[^\s*]))|^_+(?:((?!_)punct)|([^\s_]))/,je=h(ue,"u").replace(/punct/g,D).getRegex(),Fe=h(ue,"u").replace(/punct/g,pe).getRegex(),he="^[^_*]*?__[^_*]*?\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\*)punct(\\*+)(?=[\\s]|$)|notPunctSpace(\\*+)(?!\\*)(?=punctSpace|$)|(?!\\*)punctSpace(\\*+)(?=notPunctSpace)|[\\s](\\*+)(?!\\*)(?=punct)|(?!\\*)punct(\\*+)(?!\\*)(?=punct)|notPunctSpace(\\*+)(?=notPunctSpace)",Qe=h(he,"gu").replace(/notPunctSpace/g,ce).replace(/punctSpace/g,W).replace(/punct/g,D).getRegex(),Ue=h(he,"gu").replace(/notPunctSpace/g,He).replace(/punctSpace/g,Ge).replace(/punct/g,pe).getRegex(),Ke=h("^[^_*]*?\\*\\*[^_*]*?_[^_*]*?(?=\\*\\*)|[^_]+(?=[^_])|(?!_)punct(_+)(?=[\\s]|$)|notPunctSpace(_+)(?!_)(?=punctSpace|$)|(?!_)punctSpace(_+)(?=notPunctSpace)|[\\s](_+)(?!_)(?=punct)|(?!_)punct(_+)(?!_)(?=punct)","gu").replace(/notPunctSpace/g,ce).replace(/punctSpace/g,W).replace(/punct/g,D).getRegex(),Xe=h(/\\(punct)/,"gu").replace(/punct/g,D).getRegex(),We=h(/^<(scheme:[^\s\x00-\x1f<>]*|email)>/).replace("scheme",/[a-zA-Z][a-zA-Z0-9+.-]{1,31}/).replace("email",/[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+(@)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(?![-_])/).getRegex(),Je=h(K).replace("(?:-->|$)","-->").getRegex(),Ve=h("^comment|^</[a-zA-Z][\\w:-]*\\s*>|^<[a-zA-Z][\\w-]*(?:attribute)*?\\s*/?>|^<\\?[\\s\\S]*?\\?>|^<![a-zA-Z]+\\s[\\s\\S]*?>|^<!\\[CDATA\\[[\\s\\S]*?\\]\\]>").replace("comment",Je).replace("attribute",/\s+[a-zA-Z:_][\w.:-]*(?:\s*=\s*"[^"]*"|\s*=\s*'[^']*'|\s*=\s*[^\s"'=<>`]+)?/).getRegex(),q=/(?:\[(?:\\.|[^\[\]\\])*\]|\\.|`[^`]*`|[^\[\]\\`])*?/,Ye=h(/^!?\[(label)\]\(\s*(href)(?:(?:[ \t]*(?:\n[ \t]*)?)(title))?\s*\)/).replace("label",q).replace("href",/<(?:\\.|[^\n<>\\])+>|[^ \t\n\x00-\x1f]*/).replace("title",/"(?:\\"?|[^"\\])*"|'(?:\\'?|[^'\\])*'|\((?:\\\)?|[^)\\])*\)/).getRegex(),ke=h(/^!?\[(label)\]\[(ref)\]/).replace("label",q).replace("ref",U).getRegex(),ge=h(/^!?\[(ref)\](?:\[\])?/).replace("ref",U).getRegex(),et=h("reflink|nolink(?!\\()","g").replace("reflink",ke).replace("nolink",ge).getRegex(),J={_backpedal:I,anyPunctuation:Xe,autolink:We,blockSkip:Ne,br:ae,code:ve,del:I,emStrongLDelim:je,emStrongRDelimAst:Qe,emStrongRDelimUnd:Ke,escape:qe,link:Ye,nolink:ge,punctuation:Ze,reflink:ke,reflinkSearch:et,tag:Ve,text:De,url:I},tt={...J,link:h(/^!?\[(label)\]\((.*?)\)/).replace("label",q).getRegex(),reflink:h(/^!?\[(label)\]\s*\[([^\]]*)\]/).replace("label",q).getRegex()},j={...J,emStrongRDelimAst:Ue,emStrongLDelim:Fe,url:h(/^((?:ftp|https?):\/\/|www\.)(?:[a-zA-Z0-9\-]+\.?)+[^\s<]*|^email/,"i").replace("email",/[A-Za-z0-9._+-]+(@)[a-zA-Z0-9-_]+(?:\.[a-zA-Z0-9-_]*[a-zA-Z0-9])+(?![-_])/).getRegex(),_backpedal:/(?:[^?!.,:;*_'"~()&]+|\([^)]*\)|&(?![a-zA-Z0-9]+;$)|[?!.,:;*_'"~)]+(?!$))+/,del:/^(~~?)(?=[^\s~])((?:\\.|[^\\])*?(?:\\.|[^\s~\\]))\1(?=[^~]|$)/,text:/^([`~]+|[^`~])(?:(?= {2,}\n)|(?=[a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-]+@)|[\s\S]*?(?:(?=[\\<!\[`*~_]|\b_|https?:\/\/|ftp:\/\/|www\.|$)|[^ ](?= {2,}\n)|[^a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-](?=[a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-]+@)))/},nt={...j,br:h(ae).replace("{2,}","*").getRegex(),text:h(j.text).replace("\\b_","\\b_| {2,}\\n").replace(/\{2,\}/g,"*").getRegex()},B={normal:X,gfm:Oe,pedantic:Be},P={normal:J,gfm:j,breaks:nt,pedantic:tt};var st={"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"},fe=l=>st[l];function R(l,e){if(e){if(m.escapeTest.test(l))return l.replace(m.escapeReplace,fe)}else if(m.escapeTestNoEncode.test(l))return l.replace(m.escapeReplaceNoEncode,fe);return l}function V(l){try{l=encodeURI(l).replace(m.percentDecode,"%")}catch{return null}return l}function Y(l,e){let t=l.replace(m.findPipe,(i,r,o)=>{let a=!1,c=r;for(;--c>=0&&o[c]==="\\";)a=!a;return a?"|":" |"}),n=t.split(m.splitPipe),s=0;if(n[0].trim()||n.shift(),n.length>0&&!n.at(-1)?.trim()&&n.pop(),e)if(n.length>e)n.splice(e);else for(;n.length<e;)n.push("");for(;s<n.length;s++)n[s]=n[s].trim().replace(m.slashPipe,"|");return n}function A(l,e,t){let n=l.length;if(n===0)return"";let s=0;for(;s<n;){let i=l.charAt(n-s-1);if(i===e&&!t)s++;else if(i!==e&&t)s++;else break}return l.slice(0,n-s)}function de(l,e){if(l.indexOf(e[1])===-1)return-1;let t=0;for(let n=0;n<l.length;n++)if(l[n]==="\\")n++;else if(l[n]===e[0])t++;else if(l[n]===e[1]&&(t--,t<0))return n;return t>0?-2:-1}function me(l,e,t,n,s){let i=e.href,r=e.title||null,o=l[1].replace(s.other.outputLinkReplace,"$1");n.state.inLink=!0;let a={type:l[0].charAt(0)==="!"?"image":"link",raw:t,href:i,title:r,text:o,tokens:n.inlineTokens(o)};return n.state.inLink=!1,a}function rt(l,e,t){let n=l.match(t.other.indentCodeCompensation);if(n===null)return e;let s=n[1];return e.split(`
+`).map(i=>{let r=i.match(t.other.beginningSpace);if(r===null)return i;let[o]=r;return o.length>=s.length?i.slice(s.length):i}).join(`
+`)}var S=class{options;rules;lexer;constructor(e){this.options=e||w}space(e){let t=this.rules.block.newline.exec(e);if(t&&t[0].length>0)return{type:"space",raw:t[0]}}code(e){let t=this.rules.block.code.exec(e);if(t){let n=t[0].replace(this.rules.other.codeRemoveIndent,"");return{type:"code",raw:t[0],codeBlockStyle:"indented",text:this.options.pedantic?n:A(n,`
+`)}}}fences(e){let t=this.rules.block.fences.exec(e);if(t){let n=t[0],s=rt(n,t[3]||"",this.rules);return{type:"code",raw:n,lang:t[2]?t[2].trim().replace(this.rules.inline.anyPunctuation,"$1"):t[2],text:s}}}heading(e){let t=this.rules.block.heading.exec(e);if(t){let n=t[2].trim();if(this.rules.other.endingHash.test(n)){let s=A(n,"#");(this.options.pedantic||!s||this.rules.other.endingSpaceChar.test(s))&&(n=s.trim())}return{type:"heading",raw:t[0],depth:t[1].length,text:n,tokens:this.lexer.inline(n)}}}hr(e){let t=this.rules.block.hr.exec(e);if(t)return{type:"hr",raw:A(t[0],`
+`)}}blockquote(e){let t=this.rules.block.blockquote.exec(e);if(t){let n=A(t[0],`
+`).split(`
+`),s="",i="",r=[];for(;n.length>0;){let o=!1,a=[],c;for(c=0;c<n.length;c++)if(this.rules.other.blockquoteStart.test(n[c]))a.push(n[c]),o=!0;else if(!o)a.push(n[c]);else break;n=n.slice(c);let p=a.join(`
+`),u=p.replace(this.rules.other.blockquoteSetextReplace,`
+    $1`).replace(this.rules.other.blockquoteSetextReplace2,"");s=s?`${s}
+${p}`:p,i=i?`${i}
+${u}`:u;let d=this.lexer.state.top;if(this.lexer.state.top=!0,this.lexer.blockTokens(u,r,!0),this.lexer.state.top=d,n.length===0)break;let g=r.at(-1);if(g?.type==="code")break;if(g?.type==="blockquote"){let T=g,f=T.raw+`
+`+n.join(`
+`),y=this.blockquote(f);r[r.length-1]=y,s=s.substring(0,s.length-T.raw.length)+y.raw,i=i.substring(0,i.length-T.text.length)+y.text;break}else if(g?.type==="list"){let T=g,f=T.raw+`
+`+n.join(`
+`),y=this.list(f);r[r.length-1]=y,s=s.substring(0,s.length-g.raw.length)+y.raw,i=i.substring(0,i.length-T.raw.length)+y.raw,n=f.substring(r.at(-1).raw.length).split(`
+`);continue}}return{type:"blockquote",raw:s,tokens:r,text:i}}}list(e){let t=this.rules.block.list.exec(e);if(t){let n=t[1].trim(),s=n.length>1,i={type:"list",raw:"",ordered:s,start:s?+n.slice(0,-1):"",loose:!1,items:[]};n=s?`\\d{1,9}\\${n.slice(-1)}`:`\\${n}`,this.options.pedantic&&(n=s?n:"[*+-]");let r=this.rules.other.listItemRegex(n),o=!1;for(;e;){let c=!1,p="",u="";if(!(t=r.exec(e))||this.rules.block.hr.test(e))break;p=t[0],e=e.substring(p.length);let d=t[2].split(`
+`,1)[0].replace(this.rules.other.listReplaceTabs,Z=>" ".repeat(3*Z.length)),g=e.split(`
+`,1)[0],T=!d.trim(),f=0;if(this.options.pedantic?(f=2,u=d.trimStart()):T?f=t[1].length+1:(f=t[2].search(this.rules.other.nonSpaceChar),f=f>4?1:f,u=d.slice(f),f+=t[1].length),T&&this.rules.other.blankLine.test(g)&&(p+=g+`
+`,e=e.substring(g.length+1),c=!0),!c){let Z=this.rules.other.nextBulletRegex(f),te=this.rules.other.hrRegex(f),ne=this.rules.other.fencesBeginRegex(f),se=this.rules.other.headingBeginRegex(f),xe=this.rules.other.htmlBeginRegex(f);for(;e;){let G=e.split(`
+`,1)[0],C;if(g=G,this.options.pedantic?(g=g.replace(this.rules.other.listReplaceNesting,"  "),C=g):C=g.replace(this.rules.other.tabCharGlobal,"    "),ne.test(g)||se.test(g)||xe.test(g)||Z.test(g)||te.test(g))break;if(C.search(this.rules.other.nonSpaceChar)>=f||!g.trim())u+=`
+`+C.slice(f);else{if(T||d.replace(this.rules.other.tabCharGlobal,"    ").search(this.rules.other.nonSpaceChar)>=4||ne.test(d)||se.test(d)||te.test(d))break;u+=`
+`+g}!T&&!g.trim()&&(T=!0),p+=G+`
+`,e=e.substring(G.length+1),d=C.slice(f)}}i.loose||(o?i.loose=!0:this.rules.other.doubleBlankLine.test(p)&&(o=!0));let y=null,ee;this.options.gfm&&(y=this.rules.other.listIsTask.exec(u),y&&(ee=y[0]!=="[ ] ",u=u.replace(this.rules.other.listReplaceTask,""))),i.items.push({type:"list_item",raw:p,task:!!y,checked:ee,loose:!1,text:u,tokens:[]}),i.raw+=p}let a=i.items.at(-1);if(a)a.raw=a.raw.trimEnd(),a.text=a.text.trimEnd();else return;i.raw=i.raw.trimEnd();for(let c=0;c<i.items.length;c++)if(this.lexer.state.top=!1,i.items[c].tokens=this.lexer.blockTokens(i.items[c].text,[]),!i.loose){let p=i.items[c].tokens.filter(d=>d.type==="space"),u=p.length>0&&p.some(d=>this.rules.other.anyLine.test(d.raw));i.loose=u}if(i.loose)for(let c=0;c<i.items.length;c++)i.items[c].loose=!0;return i}}html(e){let t=this.rules.block.html.exec(e);if(t)return{type:"html",block:!0,raw:t[0],pre:t[1]==="pre"||t[1]==="script"||t[1]==="style",text:t[0]}}def(e){let t=this.rules.block.def.exec(e);if(t){let n=t[1].toLowerCase().replace(this.rules.other.multipleSpaceGlobal," "),s=t[2]?t[2].replace(this.rules.other.hrefBrackets,"$1").replace(this.rules.inline.anyPunctuation,"$1"):"",i=t[3]?t[3].substring(1,t[3].length-1).replace(this.rules.inline.anyPunctuation,"$1"):t[3];return{type:"def",tag:n,raw:t[0],href:s,title:i}}}table(e){let t=this.rules.block.table.exec(e);if(!t||!this.rules.other.tableDelimiter.test(t[2]))return;let n=Y(t[1]),s=t[2].replace(this.rules.other.tableAlignChars,"").split("|"),i=t[3]?.trim()?t[3].replace(this.rules.other.tableRowBlankLine,"").split(`
+`):[],r={type:"table",raw:t[0],header:[],align:[],rows:[]};if(n.length===s.length){for(let o of s)this.rules.other.tableAlignRight.test(o)?r.align.push("right"):this.rules.other.tableAlignCenter.test(o)?r.align.push("center"):this.rules.other.tableAlignLeft.test(o)?r.align.push("left"):r.align.push(null);for(let o=0;o<n.length;o++)r.header.push({text:n[o],tokens:this.lexer.inline(n[o]),header:!0,align:r.align[o]});for(let o of i)r.rows.push(Y(o,r.header.length).map((a,c)=>({text:a,tokens:this.lexer.inline(a),header:!1,align:r.align[c]})));return r}}lheading(e){let t=this.rules.block.lheading.exec(e);if(t)return{type:"heading",raw:t[0],depth:t[2].charAt(0)==="="?1:2,text:t[1],tokens:this.lexer.inline(t[1])}}paragraph(e){let t=this.rules.block.paragraph.exec(e);if(t){let n=t[1].charAt(t[1].length-1)===`
+`?t[1].slice(0,-1):t[1];return{type:"paragraph",raw:t[0],text:n,tokens:this.lexer.inline(n)}}}text(e){let t=this.rules.block.text.exec(e);if(t)return{type:"text",raw:t[0],text:t[0],tokens:this.lexer.inline(t[0])}}escape(e){let t=this.rules.inline.escape.exec(e);if(t)return{type:"escape",raw:t[0],text:t[1]}}tag(e){let t=this.rules.inline.tag.exec(e);if(t)return!this.lexer.state.inLink&&this.rules.other.startATag.test(t[0])?this.lexer.state.inLink=!0:this.lexer.state.inLink&&this.rules.other.endATag.test(t[0])&&(this.lexer.state.inLink=!1),!this.lexer.state.inRawBlock&&this.rules.other.startPreScriptTag.test(t[0])?this.lexer.state.inRawBlock=!0:this.lexer.state.inRawBlock&&this.rules.other.endPreScriptTag.test(t[0])&&(this.lexer.state.inRawBlock=!1),{type:"html",raw:t[0],inLink:this.lexer.state.inLink,inRawBlock:this.lexer.state.inRawBlock,block:!1,text:t[0]}}link(e){let t=this.rules.inline.link.exec(e);if(t){let n=t[2].trim();if(!this.options.pedantic&&this.rules.other.startAngleBracket.test(n)){if(!this.rules.other.endAngleBracket.test(n))return;let r=A(n.slice(0,-1),"\\");if((n.length-r.length)%2===0)return}else{let r=de(t[2],"()");if(r===-2)return;if(r>-1){let a=(t[0].indexOf("!")===0?5:4)+t[1].length+r;t[2]=t[2].substring(0,r),t[0]=t[0].substring(0,a).trim(),t[3]=""}}let s=t[2],i="";if(this.options.pedantic){let r=this.rules.other.pedanticHrefTitle.exec(s);r&&(s=r[1],i=r[3])}else i=t[3]?t[3].slice(1,-1):"";return s=s.trim(),this.rules.other.startAngleBracket.test(s)&&(this.options.pedantic&&!this.rules.other.endAngleBracket.test(n)?s=s.slice(1):s=s.slice(1,-1)),me(t,{href:s&&s.replace(this.rules.inline.anyPunctuation,"$1"),title:i&&i.replace(this.rules.inline.anyPunctuation,"$1")},t[0],this.lexer,this.rules)}}reflink(e,t){let n;if((n=this.rules.inline.reflink.exec(e))||(n=this.rules.inline.nolink.exec(e))){let s=(n[2]||n[1]).replace(this.rules.other.multipleSpaceGlobal," "),i=t[s.toLowerCase()];if(!i){let r=n[0].charAt(0);return{type:"text",raw:r,text:r}}return me(n,i,n[0],this.lexer,this.rules)}}emStrong(e,t,n=""){let s=this.rules.inline.emStrongLDelim.exec(e);if(!s||s[3]&&n.match(this.rules.other.unicodeAlphaNumeric))return;if(!(s[1]||s[2]||"")||!n||this.rules.inline.punctuation.exec(n)){let r=[...s[0]].length-1,o,a,c=r,p=0,u=s[0][0]==="*"?this.rules.inline.emStrongRDelimAst:this.rules.inline.emStrongRDelimUnd;for(u.lastIndex=0,t=t.slice(-1*e.length+r);(s=u.exec(t))!=null;){if(o=s[1]||s[2]||s[3]||s[4]||s[5]||s[6],!o)continue;if(a=[...o].length,s[3]||s[4]){c+=a;continue}else if((s[5]||s[6])&&r%3&&!((r+a)%3)){p+=a;continue}if(c-=a,c>0)continue;a=Math.min(a,a+c+p);let d=[...s[0]][0].length,g=e.slice(0,r+s.index+d+a);if(Math.min(r,a)%2){let f=g.slice(1,-1);return{type:"em",raw:g,text:f,tokens:this.lexer.inlineTokens(f)}}let T=g.slice(2,-2);return{type:"strong",raw:g,text:T,tokens:this.lexer.inlineTokens(T)}}}}codespan(e){let t=this.rules.inline.code.exec(e);if(t){let n=t[2].replace(this.rules.other.newLineCharGlobal," "),s=this.rules.other.nonSpaceChar.test(n),i=this.rules.other.startingSpaceChar.test(n)&&this.rules.other.endingSpaceChar.test(n);return s&&i&&(n=n.substring(1,n.length-1)),{type:"codespan",raw:t[0],text:n}}}br(e){let t=this.rules.inline.br.exec(e);if(t)return{type:"br",raw:t[0]}}del(e){let t=this.rules.inline.del.exec(e);if(t)return{type:"del",raw:t[0],text:t[2],tokens:this.lexer.inlineTokens(t[2])}}autolink(e){let t=this.rules.inline.autolink.exec(e);if(t){let n,s;return t[2]==="@"?(n=t[1],s="mailto:"+n):(n=t[1],s=n),{type:"link",raw:t[0],text:n,href:s,tokens:[{type:"text",raw:n,text:n}]}}}url(e){let t;if(t=this.rules.inline.url.exec(e)){let n,s;if(t[2]==="@")n=t[0],s="mailto:"+n;else{let i;do i=t[0],t[0]=this.rules.inline._backpedal.exec(t[0])?.[0]??"";while(i!==t[0]);n=t[0],t[1]==="www."?s="http://"+t[0]:s=t[0]}return{type:"link",raw:t[0],text:n,href:s,tokens:[{type:"text",raw:n,text:n}]}}}inlineText(e){let t=this.rules.inline.text.exec(e);if(t){let n=this.lexer.state.inRawBlock;return{type:"text",raw:t[0],text:t[0],escaped:n}}}};var x=class l{tokens;options;state;tokenizer;inlineQueue;constructor(e){this.tokens=[],this.tokens.links=Object.create(null),this.options=e||w,this.options.tokenizer=this.options.tokenizer||new S,this.tokenizer=this.options.tokenizer,this.tokenizer.options=this.options,this.tokenizer.lexer=this,this.inlineQueue=[],this.state={inLink:!1,inRawBlock:!1,top:!0};let t={other:m,block:B.normal,inline:P.normal};this.options.pedantic?(t.block=B.pedantic,t.inline=P.pedantic):this.options.gfm&&(t.block=B.gfm,this.options.breaks?t.inline=P.breaks:t.inline=P.gfm),this.tokenizer.rules=t}static get rules(){return{block:B,inline:P}}static lex(e,t){return new l(t).lex(e)}static lexInline(e,t){return new l(t).inlineTokens(e)}lex(e){e=e.replace(m.carriageReturn,`
+`),this.blockTokens(e,this.tokens);for(let t=0;t<this.inlineQueue.length;t++){let n=this.inlineQueue[t];this.inlineTokens(n.src,n.tokens)}return this.inlineQueue=[],this.tokens}blockTokens(e,t=[],n=!1){for(this.options.pedantic&&(e=e.replace(m.tabCharGlobal,"    ").replace(m.spaceLine,""));e;){let s;if(this.options.extensions?.block?.some(r=>(s=r.call({lexer:this},e,t))?(e=e.substring(s.raw.length),t.push(s),!0):!1))continue;if(s=this.tokenizer.space(e)){e=e.substring(s.raw.length);let r=t.at(-1);s.raw.length===1&&r!==void 0?r.raw+=`
+`:t.push(s);continue}if(s=this.tokenizer.code(e)){e=e.substring(s.raw.length);let r=t.at(-1);r?.type==="paragraph"||r?.type==="text"?(r.raw+=`
+`+s.raw,r.text+=`
+`+s.text,this.inlineQueue.at(-1).src=r.text):t.push(s);continue}if(s=this.tokenizer.fences(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.heading(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.hr(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.blockquote(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.list(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.html(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.def(e)){e=e.substring(s.raw.length);let r=t.at(-1);r?.type==="paragraph"||r?.type==="text"?(r.raw+=`
+`+s.raw,r.text+=`
+`+s.raw,this.inlineQueue.at(-1).src=r.text):this.tokens.links[s.tag]||(this.tokens.links[s.tag]={href:s.href,title:s.title});continue}if(s=this.tokenizer.table(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.lheading(e)){e=e.substring(s.raw.length),t.push(s);continue}let i=e;if(this.options.extensions?.startBlock){let r=1/0,o=e.slice(1),a;this.options.extensions.startBlock.forEach(c=>{a=c.call({lexer:this},o),typeof a=="number"&&a>=0&&(r=Math.min(r,a))}),r<1/0&&r>=0&&(i=e.substring(0,r+1))}if(this.state.top&&(s=this.tokenizer.paragraph(i))){let r=t.at(-1);n&&r?.type==="paragraph"?(r.raw+=`
+`+s.raw,r.text+=`
+`+s.text,this.inlineQueue.pop(),this.inlineQueue.at(-1).src=r.text):t.push(s),n=i.length!==e.length,e=e.substring(s.raw.length);continue}if(s=this.tokenizer.text(e)){e=e.substring(s.raw.length);let r=t.at(-1);r?.type==="text"?(r.raw+=`
+`+s.raw,r.text+=`
+`+s.text,this.inlineQueue.pop(),this.inlineQueue.at(-1).src=r.text):t.push(s);continue}if(e){let r="Infinite loop on byte: "+e.charCodeAt(0);if(this.options.silent){console.error(r);break}else throw new Error(r)}}return this.state.top=!0,t}inline(e,t=[]){return this.inlineQueue.push({src:e,tokens:t}),t}inlineTokens(e,t=[]){let n=e,s=null;if(this.tokens.links){let o=Object.keys(this.tokens.links);if(o.length>0)for(;(s=this.tokenizer.rules.inline.reflinkSearch.exec(n))!=null;)o.includes(s[0].slice(s[0].lastIndexOf("[")+1,-1))&&(n=n.slice(0,s.index)+"["+"a".repeat(s[0].length-2)+"]"+n.slice(this.tokenizer.rules.inline.reflinkSearch.lastIndex))}for(;(s=this.tokenizer.rules.inline.anyPunctuation.exec(n))!=null;)n=n.slice(0,s.index)+"++"+n.slice(this.tokenizer.rules.inline.anyPunctuation.lastIndex);for(;(s=this.tokenizer.rules.inline.blockSkip.exec(n))!=null;)n=n.slice(0,s.index)+"["+"a".repeat(s[0].length-2)+"]"+n.slice(this.tokenizer.rules.inline.blockSkip.lastIndex);let i=!1,r="";for(;e;){i||(r=""),i=!1;let o;if(this.options.extensions?.inline?.some(c=>(o=c.call({lexer:this},e,t))?(e=e.substring(o.raw.length),t.push(o),!0):!1))continue;if(o=this.tokenizer.escape(e)){e=e.substring(o.raw.length),t.push(o);continue}if(o=this.tokenizer.tag(e)){e=e.substring(o.raw.length),t.push(o);continue}if(o=this.tokenizer.link(e)){e=e.substring(o.raw.length),t.push(o);continue}if(o=this.tokenizer.reflink(e,this.tokens.links)){e=e.substring(o.raw.length);let c=t.at(-1);o.type==="text"&&c?.type==="text"?(c.raw+=o.raw,c.text+=o.text):t.push(o);continue}if(o=this.tokenizer.emStrong(e,n,r)){e=e.substring(o.raw.length),t.push(o);continue}if(o=this.tokenizer.codespan(e)){e=e.substring(o.raw.length),t.push(o);continue}if(o=this.tokenizer.br(e)){e=e.substring(o.raw.length),t.push(o);continue}if(o=this.tokenizer.del(e)){e=e.substring(o.raw.length),t.push(o);continue}if(o=this.tokenizer.autolink(e)){e=e.substring(o.raw.length),t.push(o);continue}if(!this.state.inLink&&(o=this.tokenizer.url(e))){e=e.substring(o.raw.length),t.push(o);continue}let a=e;if(this.options.extensions?.startInline){let c=1/0,p=e.slice(1),u;this.options.extensions.startInline.forEach(d=>{u=d.call({lexer:this},p),typeof u=="number"&&u>=0&&(c=Math.min(c,u))}),c<1/0&&c>=0&&(a=e.substring(0,c+1))}if(o=this.tokenizer.inlineText(a)){e=e.substring(o.raw.length),o.raw.slice(-1)!=="_"&&(r=o.raw.slice(-1)),i=!0;let c=t.at(-1);c?.type==="text"?(c.raw+=o.raw,c.text+=o.text):t.push(o);continue}if(e){let c="Infinite loop on byte: "+e.charCodeAt(0);if(this.options.silent){console.error(c);break}else throw new Error(c)}}return t}};var $=class{options;parser;constructor(e){this.options=e||w}space(e){return""}code({text:e,lang:t,escaped:n}){let s=(t||"").match(m.notSpaceStart)?.[0],i=e.replace(m.endingNewline,"")+`
+`;return s?'<pre><code class="language-'+R(s)+'">'+(n?i:R(i,!0))+`</code></pre>
+`:"<pre><code>"+(n?i:R(i,!0))+`</code></pre>
+`}blockquote({tokens:e}){return`<blockquote>
+${this.parser.parse(e)}</blockquote>
+`}html({text:e}){return e}heading({tokens:e,depth:t}){return`<h${t}>${this.parser.parseInline(e)}</h${t}>
+`}hr(e){return`<hr>
+`}list(e){let t=e.ordered,n=e.start,s="";for(let o=0;o<e.items.length;o++){let a=e.items[o];s+=this.listitem(a)}let i=t?"ol":"ul",r=t&&n!==1?' start="'+n+'"':"";return"<"+i+r+`>
+`+s+"</"+i+`>
+`}listitem(e){let t="";if(e.task){let n=this.checkbox({checked:!!e.checked});e.loose?e.tokens[0]?.type==="paragraph"?(e.tokens[0].text=n+" "+e.tokens[0].text,e.tokens[0].tokens&&e.tokens[0].tokens.length>0&&e.tokens[0].tokens[0].type==="text"&&(e.tokens[0].tokens[0].text=n+" "+R(e.tokens[0].tokens[0].text),e.tokens[0].tokens[0].escaped=!0)):e.tokens.unshift({type:"text",raw:n+" ",text:n+" ",escaped:!0}):t+=n+" "}return t+=this.parser.parse(e.tokens,!!e.loose),`<li>${t}</li>
+`}checkbox({checked:e}){return"<input "+(e?'checked="" ':"")+'disabled="" type="checkbox">'}paragraph({tokens:e}){return`<p>${this.parser.parseInline(e)}</p>
+`}table(e){let t="",n="";for(let i=0;i<e.header.length;i++)n+=this.tablecell(e.header[i]);t+=this.tablerow({text:n});let s="";for(let i=0;i<e.rows.length;i++){let r=e.rows[i];n="";for(let o=0;o<r.length;o++)n+=this.tablecell(r[o]);s+=this.tablerow({text:n})}return s&&(s=`<tbody>${s}</tbody>`),`<table>
+<thead>
+`+t+`</thead>
+`+s+`</table>
+`}tablerow({text:e}){return`<tr>
+${e}</tr>
+`}tablecell(e){let t=this.parser.parseInline(e.tokens),n=e.header?"th":"td";return(e.align?`<${n} align="${e.align}">`:`<${n}>`)+t+`</${n}>
+`}strong({tokens:e}){return`<strong>${this.parser.parseInline(e)}</strong>`}em({tokens:e}){return`<em>${this.parser.parseInline(e)}</em>`}codespan({text:e}){return`<code>${R(e,!0)}</code>`}br(e){return"<br>"}del({tokens:e}){return`<del>${this.parser.parseInline(e)}</del>`}link({href:e,title:t,tokens:n}){let s=this.parser.parseInline(n),i=V(e);if(i===null)return s;e=i;let r='<a href="'+e+'"';return t&&(r+=' title="'+R(t)+'"'),r+=">"+s+"</a>",r}image({href:e,title:t,text:n,tokens:s}){s&&(n=this.parser.parseInline(s,this.parser.textRenderer));let i=V(e);if(i===null)return R(n);e=i;let r=`<img src="${e}" alt="${n}"`;return t&&(r+=` title="${R(t)}"`),r+=">",r}text(e){return"tokens"in e&&e.tokens?this.parser.parseInline(e.tokens):"escaped"in e&&e.escaped?e.text:R(e.text)}};var _=class{strong({text:e}){return e}em({text:e}){return e}codespan({text:e}){return e}del({text:e}){return e}html({text:e}){return e}text({text:e}){return e}link({text:e}){return""+e}image({text:e}){return""+e}br(){return""}};var b=class l{options;renderer;textRenderer;constructor(e){this.options=e||w,this.options.renderer=this.options.renderer||new $,this.renderer=this.options.renderer,this.renderer.options=this.options,this.renderer.parser=this,this.textRenderer=new _}static parse(e,t){return new l(t).parse(e)}static parseInline(e,t){return new l(t).parseInline(e)}parse(e,t=!0){let n="";for(let s=0;s<e.length;s++){let i=e[s];if(this.options.extensions?.renderers?.[i.type]){let o=i,a=this.options.extensions.renderers[o.type].call({parser:this},o);if(a!==!1||!["space","hr","heading","code","table","blockquote","list","html","paragraph","text"].includes(o.type)){n+=a||"";continue}}let r=i;switch(r.type){case"space":{n+=this.renderer.space(r);continue}case"hr":{n+=this.renderer.hr(r);continue}case"heading":{n+=this.renderer.heading(r);continue}case"code":{n+=this.renderer.code(r);continue}case"table":{n+=this.renderer.table(r);continue}case"blockquote":{n+=this.renderer.blockquote(r);continue}case"list":{n+=this.renderer.list(r);continue}case"html":{n+=this.renderer.html(r);continue}case"paragraph":{n+=this.renderer.paragraph(r);continue}case"text":{let o=r,a=this.renderer.text(o);for(;s+1<e.length&&e[s+1].type==="text";)o=e[++s],a+=`
+`+this.renderer.text(o);t?n+=this.renderer.paragraph({type:"paragraph",raw:a,text:a,tokens:[{type:"text",raw:a,text:a,escaped:!0}]}):n+=a;continue}default:{let o='Token with "'+r.type+'" type was not found.';if(this.options.silent)return console.error(o),"";throw new Error(o)}}}return n}parseInline(e,t=this.renderer){let n="";for(let s=0;s<e.length;s++){let i=e[s];if(this.options.extensions?.renderers?.[i.type]){let o=this.options.extensions.renderers[i.type].call({parser:this},i);if(o!==!1||!["escape","html","link","image","strong","em","codespan","br","del","text"].includes(i.type)){n+=o||"";continue}}let r=i;switch(r.type){case"escape":{n+=t.text(r);break}case"html":{n+=t.html(r);break}case"link":{n+=t.link(r);break}case"image":{n+=t.image(r);break}case"strong":{n+=t.strong(r);break}case"em":{n+=t.em(r);break}case"codespan":{n+=t.codespan(r);break}case"br":{n+=t.br(r);break}case"del":{n+=t.del(r);break}case"text":{n+=t.text(r);break}default:{let o='Token with "'+r.type+'" type was not found.';if(this.options.silent)return console.error(o),"";throw new Error(o)}}}return n}};var L=class{options;block;constructor(e){this.options=e||w}static passThroughHooks=new Set(["preprocess","postprocess","processAllTokens"]);preprocess(e){return e}postprocess(e){return e}processAllTokens(e){return e}provideLexer(){return this.block?x.lex:x.lexInline}provideParser(){return this.block?b.parse:b.parseInline}};var E=class{defaults=z();options=this.setOptions;parse=this.parseMarkdown(!0);parseInline=this.parseMarkdown(!1);Parser=b;Renderer=$;TextRenderer=_;Lexer=x;Tokenizer=S;Hooks=L;constructor(...e){this.use(...e)}walkTokens(e,t){let n=[];for(let s of e)switch(n=n.concat(t.call(this,s)),s.type){case"table":{let i=s;for(let r of i.header)n=n.concat(this.walkTokens(r.tokens,t));for(let r of i.rows)for(let o of r)n=n.concat(this.walkTokens(o.tokens,t));break}case"list":{let i=s;n=n.concat(this.walkTokens(i.items,t));break}default:{let i=s;this.defaults.extensions?.childTokens?.[i.type]?this.defaults.extensions.childTokens[i.type].forEach(r=>{let o=i[r].flat(1/0);n=n.concat(this.walkTokens(o,t))}):i.tokens&&(n=n.concat(this.walkTokens(i.tokens,t)))}}return n}use(...e){let t=this.defaults.extensions||{renderers:{},childTokens:{}};return e.forEach(n=>{let s={...n};if(s.async=this.defaults.async||s.async||!1,n.extensions&&(n.extensions.forEach(i=>{if(!i.name)throw new Error("extension name required");if("renderer"in i){let r=t.renderers[i.name];r?t.renderers[i.name]=function(...o){let a=i.renderer.apply(this,o);return a===!1&&(a=r.apply(this,o)),a}:t.renderers[i.name]=i.renderer}if("tokenizer"in i){if(!i.level||i.level!=="block"&&i.level!=="inline")throw new Error("extension level must be 'block' or 'inline'");let r=t[i.level];r?r.unshift(i.tokenizer):t[i.level]=[i.tokenizer],i.start&&(i.level==="block"?t.startBlock?t.startBlock.push(i.start):t.startBlock=[i.start]:i.level==="inline"&&(t.startInline?t.startInline.push(i.start):t.startInline=[i.start]))}"childTokens"in i&&i.childTokens&&(t.childTokens[i.name]=i.childTokens)}),s.extensions=t),n.renderer){let i=this.defaults.renderer||new $(this.defaults);for(let r in n.renderer){if(!(r in i))throw new Error(`renderer '${r}' does not exist`);if(["options","parser"].includes(r))continue;let o=r,a=n.renderer[o],c=i[o];i[o]=(...p)=>{let u=a.apply(i,p);return u===!1&&(u=c.apply(i,p)),u||""}}s.renderer=i}if(n.tokenizer){let i=this.defaults.tokenizer||new S(this.defaults);for(let r in n.tokenizer){if(!(r in i))throw new Error(`tokenizer '${r}' does not exist`);if(["options","rules","lexer"].includes(r))continue;let o=r,a=n.tokenizer[o],c=i[o];i[o]=(...p)=>{let u=a.apply(i,p);return u===!1&&(u=c.apply(i,p)),u}}s.tokenizer=i}if(n.hooks){let i=this.defaults.hooks||new L;for(let r in n.hooks){if(!(r in i))throw new Error(`hook '${r}' does not exist`);if(["options","block"].includes(r))continue;let o=r,a=n.hooks[o],c=i[o];L.passThroughHooks.has(r)?i[o]=p=>{if(this.defaults.async)return Promise.resolve(a.call(i,p)).then(d=>c.call(i,d));let u=a.call(i,p);return c.call(i,u)}:i[o]=(...p)=>{let u=a.apply(i,p);return u===!1&&(u=c.apply(i,p)),u}}s.hooks=i}if(n.walkTokens){let i=this.defaults.walkTokens,r=n.walkTokens;s.walkTokens=function(o){let a=[];return a.push(r.call(this,o)),i&&(a=a.concat(i.call(this,o))),a}}this.defaults={...this.defaults,...s}}),this}setOptions(e){return this.defaults={...this.defaults,...e},this}lexer(e,t){return x.lex(e,t??this.defaults)}parser(e,t){return b.parse(e,t??this.defaults)}parseMarkdown(e){return(n,s)=>{let i={...s},r={...this.defaults,...i},o=this.onError(!!r.silent,!!r.async);if(this.defaults.async===!0&&i.async===!1)return o(new Error("marked(): The async option was set to true by an extension. Remove async: false from the parse options object to return a Promise."));if(typeof n>"u"||n===null)return o(new Error("marked(): input parameter is undefined or null"));if(typeof n!="string")return o(new Error("marked(): input parameter is of type "+Object.prototype.toString.call(n)+", string expected"));r.hooks&&(r.hooks.options=r,r.hooks.block=e);let a=r.hooks?r.hooks.provideLexer():e?x.lex:x.lexInline,c=r.hooks?r.hooks.provideParser():e?b.parse:b.parseInline;if(r.async)return Promise.resolve(r.hooks?r.hooks.preprocess(n):n).then(p=>a(p,r)).then(p=>r.hooks?r.hooks.processAllTokens(p):p).then(p=>r.walkTokens?Promise.all(this.walkTokens(p,r.walkTokens)).then(()=>p):p).then(p=>c(p,r)).then(p=>r.hooks?r.hooks.postprocess(p):p).catch(o);try{r.hooks&&(n=r.hooks.preprocess(n));let p=a(n,r);r.hooks&&(p=r.hooks.processAllTokens(p)),r.walkTokens&&this.walkTokens(p,r.walkTokens);let u=c(p,r);return r.hooks&&(u=r.hooks.postprocess(u)),u}catch(p){return o(p)}}}onError(e,t){return n=>{if(n.message+=`
+Please report this to https://github.com/markedjs/marked.`,e){let s="<p>An error occurred:</p><pre>"+R(n.message+"",!0)+"</pre>";return t?Promise.resolve(s):s}if(t)return Promise.reject(n);throw n}}};var M=new E;function k(l,e){return M.parse(l,e)}k.options=k.setOptions=function(l){return M.setOptions(l),k.defaults=M.defaults,N(k.defaults),k};k.getDefaults=z;k.defaults=w;k.use=function(...l){return M.use(...l),k.defaults=M.defaults,N(k.defaults),k};k.walkTokens=function(l,e){return M.walkTokens(l,e)};k.parseInline=M.parseInline;k.Parser=b;k.parser=b.parse;k.Renderer=$;k.TextRenderer=_;k.Lexer=x;k.lexer=x.lex;k.Tokenizer=S;k.Hooks=L;k.parse=k;var it=k.options,ot=k.setOptions,lt=k.use,at=k.walkTokens,ct=k.parseInline,pt=k,ut=b.parse,ht=x.lex;
+
+if(__exports != exports)module.exports = exports;return module.exports}));
+
+</script>
+<script>
+/* ui.js — 通用 UI 辅助：toast、确认弹窗、时间格式化、HTML 转义 */
+(function () {
+  'use strict';
+  window.NotesApp = window.NotesApp || {};
+  var NotesApp = window.NotesApp;
+
+  var toastContainer = null;
+  var modalRoot = null;
+  var uid = 0;
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  /* 两数补零 */
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  /* 时间戳 → YYYY-MM-DD HH:mm:ss（本地时区） */
+  function formatTime(ts) {
+    var d = new Date(ts);
+    if (isNaN(d.getTime())) return '';
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+      ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+
+  /* 时间戳 → YYYYMMDD_HHmmss（用于文件名） */
+  function formatFileStamp(ts) {
+    var d = new Date(ts);
+    if (isNaN(d.getTime())) return '';
+    return '' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) +
+      '_' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+  }
+
+  /* HTML 转义（防止 XSS / 破坏渲染） */
+  function escapeHtml(str) {
+    return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  /* Toast 轻提示：type = 'success' | 'error' | 'info' */
+  function toast(message, type) {
+    type = type || 'info';
+    if (!toastContainer) {
+      toastContainer = document.getElementById('toast-container');
+    }
+    var t = el('div', 'toast ' + type);
+    var dot = el('span', 'dot');
+    dot.setAttribute('aria-hidden', 'true');
+    t.appendChild(dot);
+    t.appendChild(document.createTextNode(message));
+    t.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    toastContainer.appendChild(t);
+    setTimeout(function () {
+      if (t.parentNode) t.parentNode.removeChild(t);
+    }, 3000);
+  }
+
+  /* 确保弹窗容器存在 */
+  function getModalRoot() {
+    if (!modalRoot) modalRoot = document.getElementById('modal-root');
+    return modalRoot;
+  }
+
+  /* 通用确认弹窗（Promise<boolean>）
+   * opts: { title, message, danger, confirmText, cancelText, requireInput, bodyHtml, bodyText, meta }
+   *  - requireInput: 传入需用户输入的字符串（如 'DELETE'），输入匹配才允许确认
+   */
+  function confirm(opts) {
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      var root = getModalRoot();
+      var overlay = el('div', 'modal-overlay');
+      var modal = el('div', 'modal');
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+
+      var title = el('h3', opts.danger ? 'danger' : '', opts.title || '确认');
+      modal.appendChild(title);
+
+      var p = el('p', '', opts.message || '');
+      modal.appendChild(p);
+
+      var input = null;
+      if (opts.requireInput) {
+        input = el('input', 'input confirm-input');
+        input.type = 'text';
+        input.placeholder = '输入 ' + opts.requireInput + ' 以确认';
+        input.autocomplete = 'off';
+        input.setAttribute('aria-label', '输入 ' + opts.requireInput + ' 以确认');
+        modal.appendChild(input);
+      }
+
+      if (opts.bodyText != null) {
+        var body = el('div', 'modal-body' + (opts.bodyMono ? ' mono' : ''), opts.bodyText);
+        modal.appendChild(body);
+      }
+
+      var actions = el('div', 'actions');
+      var cancelBtn = el('button', 'btn btn-secondary btn-sm', opts.cancelText || '取消');
+      var confirmBtn = el('button', 'btn ' + (opts.danger ? 'btn-danger' : 'btn-primary') + ' btn-sm', opts.confirmText || '确定');
+      if (opts.requireInput) confirmBtn.disabled = true;
+      actions.appendChild(cancelBtn);
+      actions.appendChild(confirmBtn);
+      modal.appendChild(actions);
+
+      overlay.appendChild(modal);
+      root.appendChild(overlay);
+
+      var focusTarget = input || confirmBtn;
+      focusTarget.focus();
+
+      var lastFocus = document.activeElement;
+
+      function close(result) {
+        overlay.remove();
+        if (lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
+        resolve(result);
+      }
+
+      function syncConfirmState() {
+        if (opts.requireInput) {
+          confirmBtn.disabled = input.value !== opts.requireInput;
+        }
+      }
+
+      cancelBtn.addEventListener('click', function () { close(false); });
+      confirmBtn.addEventListener('click', function () {
+        if (!confirmBtn.disabled) close(true);
+      });
+      overlay.addEventListener('click', function (e) { if (e.target === overlay) close(false); });
+      document.addEventListener('keydown', function onKey(e) {
+        if (e.key === 'Escape') { document.removeEventListener('keydown', onKey); close(false); }
+      });
+      if (input) input.addEventListener('input', syncConfirmState);
+      if (input) input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !confirmBtn.disabled) close(true);
+      });
+    });
+  }
+
+  /* 只读查看弹窗（用于历史「查看」），返回 Promise，关闭即结束 */
+  function viewModal(opts) {
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      var root = getModalRoot();
+      var overlay = el('div', 'modal-overlay');
+      var modal = el('div', 'modal');
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+
+      var title = el('h3', '', opts.title || '查看');
+      modal.appendChild(title);
+
+      if (opts.meta) {
+        var meta = el('div', 'modal-meta', opts.meta);
+        modal.appendChild(meta);
+      }
+
+      var body = el('div', 'modal-body' + (opts.bodyMono ? ' mono' : ''), opts.bodyText || '');
+      modal.appendChild(body);
+
+      var actions = el('div', 'actions');
+      var closeBtn = el('button', 'btn btn-secondary btn-sm', '关闭');
+      actions.appendChild(closeBtn);
+      modal.appendChild(actions);
+
+      overlay.appendChild(modal);
+      root.appendChild(overlay);
+      closeBtn.focus();
+
+      function close() { overlay.remove(); resolve(); }
+      closeBtn.addEventListener('click', close);
+      overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+      document.addEventListener('keydown', function onKey(e) {
+        if (e.key === 'Escape') { document.removeEventListener('keydown', onKey); close(); }
+      });
+    });
+  }
+
+  NotesApp.ui = {
+    toast: toast,
+    confirm: confirm,
+    viewModal: viewModal,
+    formatTime: formatTime,
+    formatFileStamp: formatFileStamp,
+    escapeHtml: escapeHtml
+  };
+})();
+
+</script>
+<script>
+/* storage.js — localStorage 封装：读写笔记、当前笔记 ID、设置；容量检查、异常兜底。
+ * 数据唯一出口：业务模块不得直接调用 localStorage.setItem/getItem。
+ * 存储键严格遵循 PRD 第 3 章（统一 notes.app.* 前缀）：
+ *   notes.app.notes        -> JSON 数组（Note[]）
+ *   notes.app.currentNoteId -> string | ''（空字符串表示 null/新建态）
+ *   notes.app.settings     -> JSON 对象
+ */
+(function () {
+  'use strict';
+  window.NotesApp = window.NotesApp || {};
+  var NotesApp = window.NotesApp;
+
+  var KEYS = {
+    notes: 'notes.app.notes',
+    currentNoteId: 'notes.app.currentNoteId',
+    settings: 'notes.app.settings'
+  };
+
+  /* localStorage 容量上限（约 5MB，UTF-16 码元计数）。PRD 3.4 要求写入前估算
+   * JSON.stringify(data).length 并做接近上限的预判。 */
+  var MAX_CHARS = 4.8 * 1000 * 1000;
+
+  /* 内存态（会话内唯一数据源） */
+  var _notes = [];
+  var _currentNoteId = null;
+  var _settings = {};
+
+  function safeParseJSON(raw, fallback) {
+    if (raw == null || raw === '') return fallback;
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  /* 净化单条笔记对象，缺字段补默认值 */
+  function sanitizeNote(n) {
+    if (!n || typeof n !== 'object') return null;
+    if (typeof n.id !== 'string' || !n.id) return null;
+    return {
+      id: n.id,
+      title: typeof n.title === 'string' ? n.title : '',
+      content: typeof n.content === 'string' ? n.content : '',
+      createdAt: typeof n.createdAt === 'number' ? n.createdAt : Date.now(),
+      updatedAt: typeof n.updatedAt === 'number' ? n.updatedAt : Date.now()
+    };
+  }
+
+  function readNotes() {
+    try {
+      var raw = localStorage.getItem(KEYS.notes);
+      if (raw == null) return { notes: [], corrupted: false };
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return { notes: [], corrupted: true };
+      var clean = [];
+      for (var i = 0; i < arr.length; i++) {
+        var n = sanitizeNote(arr[i]);
+        if (n) clean.push(n);
+      }
+      return { notes: clean, corrupted: false };
+    } catch (e) {
+      return { notes: [], corrupted: true };
+    }
+  }
+
+  function readCurrentNoteId() {
+    try {
+      var v = localStorage.getItem(KEYS.currentNoteId);
+      return v ? v : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function readSettings() {
+    return safeParseJSON(localStorage.getItem(KEYS.settings), {});
+  }
+
+  /* 初始化：从 localStorage 载入到内存。返回 { corrupted } 供启动时提示。 */
+  function init() {
+    var r = readNotes();
+    _notes = r.notes;
+    _currentNoteId = readCurrentNoteId();
+    _settings = readSettings();
+
+    // 兜底：当前笔记 ID 指向不存在的笔记时重置为空（新建态）
+    if (_currentNoteId && !findById(_currentNoteId)) {
+      _currentNoteId = null;
+    }
+    return { corrupted: r.corrupted };
+  }
+
+  function findById(id) {
+    for (var i = 0; i < _notes.length; i++) {
+      if (_notes[i].id === id) return _notes[i];
+    }
+    return null;
+  }
+
+  function getNotes() { return _notes; }
+
+  function getNoteById(id) { return findById(id); }
+
+  function getCurrentNoteId() { return _currentNoteId; }
+
+  function getSettings() { return _settings; }
+
+  function getMaxChars() { return MAX_CHARS; }
+
+  /* 写入笔记数组（整体覆写）。返回 { ok, message }；容量满 / 异常时 ok=false。 */
+  function saveNotes(notes) {
+    var json;
+    try {
+      json = JSON.stringify(notes);
+    } catch (e) {
+      return { ok: false, message: '数据序列化失败：' + (e && e.message ? e.message : '未知错误') };
+    }
+    if (json.length > MAX_CHARS) {
+      return { ok: false, message: '存储空间不足，请删除部分历史记录' };
+    }
+    try {
+      localStorage.setItem(KEYS.notes, json);
+      _notes = notes;
+      return { ok: true };
+    } catch (e) {
+      if (e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014)) {
+        return { ok: false, message: '存储空间不足，请删除部分历史记录' };
+      }
+      return { ok: false, message: '保存失败：' + (e && e.message ? e.message : '未知错误') };
+    }
+  }
+
+  function saveCurrentNoteId(id) {
+    _currentNoteId = id;
+    try {
+      if (id == null || id === '') {
+        localStorage.removeItem(KEYS.currentNoteId);
+      } else {
+        localStorage.setItem(KEYS.currentNoteId, id);
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function saveSettings(settings) {
+    _settings = settings || {};
+    try {
+      localStorage.setItem(KEYS.settings, JSON.stringify(_settings));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /* 估算当前已用存储（UTF-16 字符数 + 近似 KB），供历史模块展示 */
+  function estimateUsage() {
+    var chars;
+    try {
+      chars = JSON.stringify(_notes).length;
+    } catch (e) {
+      chars = 0;
+    }
+    return { chars: chars, kb: Math.round(chars / 1024), maxChars: MAX_CHARS };
+  }
+
+  NotesApp.storage = {
+    init: init,
+    getNotes: getNotes,
+    getNoteById: getNoteById,
+    getCurrentNoteId: getCurrentNoteId,
+    getSettings: getSettings,
+    getMaxChars: getMaxChars,
+    saveNotes: saveNotes,
+    saveCurrentNoteId: saveCurrentNoteId,
+    saveSettings: saveSettings,
+    estimateUsage: estimateUsage,
+    KEYS: KEYS
+  };
+})();
+
+</script>
+<script>
+/* notes.js — 记事本模块：新建、编辑、保存（新增/更新）、打开目录笔记、自动保存、保存反馈。
+ * 依赖：storage.js、ui.js
+ * 关键规则（PRD N-05）：
+ *   - 同一「当前笔记」（currentNoteId）反复保存 = 更新；
+ *   - 新建 = 立即创建空占位笔记并设为当前；之后保存 = 更新该笔记（不再新增）。
+ */
+(function () {
+  'use strict';
+  window.NotesApp = window.NotesApp || {};
+  var NotesApp = window.NotesApp;
+
+  var TITLE_MAX = 200;          // PRD 3.4：标题 ≤ 200 字符
+  var CONTENT_MAX = 200000;     // PRD 3.4：正文 ≤ 200,000 字符
+  var AUTOSAVE_DELAY = 3000;    // PRD N-04：编辑暂停 3s 后自动保存
+
+  var titleInput = null;
+  var bodyInput = null;
+  var statusBadge = null;
+  var statusTime = null;
+  var statusCount = null;
+
+  var currentNoteId = null;
+  var dirty = false;
+  var lastSavedAt = null;       // 最近一次成功保存时间戳
+  var autosaveTimer = null;
+
+  function getCurrentNoteId() { return currentNoteId; }
+
+  function countChars() {
+    return (titleInput.value || '').length + (bodyInput.value || '').length;
+  }
+
+  function genId() {
+    return Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function setStatus(state, time, count) {
+    statusBadge.className = 'badge ' + (state === 'dirty' ? 'dirty' : 'saved');
+    statusBadge.textContent = state === 'dirty' ? '未保存' : '已保存';
+    statusTime.textContent = time || '';
+    statusCount.textContent = '· ' + count + ' 字';
+  }
+
+  function refreshStatus() {
+    var count = countChars();
+    if (dirty) {
+      setStatus('dirty', '', count);
+    } else if (lastSavedAt) {
+      setStatus('saved', NotesApp.ui.formatTime(lastSavedAt), count);
+    } else {
+      setStatus('saved', '', count);
+    }
+  }
+
+  function markDirty() {
+    dirty = true;
+    refreshStatus();
+    scheduleAutosave();
+  }
+
+  function scheduleAutosave() {
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(function () {
+      autosaveTimer = null;
+      if (!dirty) return;
+      var title = titleInput.value || '';
+      var content = bodyInput.value || '';
+      // 自动保存仅在确有内容且未超长时触发，避免产生空/超长快照
+      if (content.length > CONTENT_MAX) return;
+      if (title.trim() === '' && content.trim() === '') return;
+      save({ auto: true });
+    }, AUTOSAVE_DELAY);
+  }
+
+  /* 目录渲染（避免与 history.js 循环耦合，运行期安全调用） */
+  function refreshDirectory() {
+    if (NotesApp.history) NotesApp.history.render();
+  }
+
+  /* 保存（新增或更新）。opts.auto=true 表示自动保存（轻反馈，不弹 toast）。
+   * 返回 { ok, message }。 */
+  function save(opts) {
+    opts = opts || {};
+    var title = titleInput.value || '';
+    var content = bodyInput.value || '';
+
+    if (content.length > CONTENT_MAX) {
+      return { ok: false, message: '内容过长（超过 ' + CONTENT_MAX + ' 字符），请精简后再保存' };
+    }
+    if (title.length > TITLE_MAX) {
+      return { ok: false, message: '标题过长（超过 ' + TITLE_MAX + ' 字符）' };
+    }
+    if (title.trim() === '' && content.trim() === '') {
+      return { ok: false, message: '内容为空，无法保存' };
+    }
+
+    var notes = NotesApp.storage.getNotes();
+    var now = Date.now();
+    var note = null;
+
+    if (currentNoteId) {
+      note = NotesApp.storage.getNoteById(currentNoteId);
+      if (note) {
+        note.title = title;
+        note.content = content;
+        note.updatedAt = now;
+      } else {
+        // 理论上 init 已兜底，此处再次兜底：ID 失效则转新增
+        currentNoteId = null;
+      }
+    }
+
+    if (!currentNoteId) {
+      note = {
+        id: genId(),
+        title: title,
+        content: content,
+        createdAt: now,
+        updatedAt: now
+      };
+      notes.push(note);
+      currentNoteId = note.id;
+      NotesApp.storage.saveCurrentNoteId(currentNoteId);
+    }
+
+    var res = NotesApp.storage.saveNotes(notes);
+    if (!res.ok) {
+      return { ok: false, message: res.message };
+    }
+
+    dirty = false;
+    lastSavedAt = now;
+    refreshStatus();
+    refreshDirectory();
+
+    if (opts.auto) {
+      // 自动保存：仅在状态栏体现，不弹 toast
+    } else {
+      NotesApp.ui.toast('已保存', 'success');
+    }
+    return { ok: true, note: note };
+  }
+
+  /* 新建：有未保存内容时二次确认放弃 */
+  function newNote() {
+    function doNew() {
+      var now = Date.now();
+      var note = {
+        id: genId(),
+        title: '',
+        content: '',
+        createdAt: now,
+        updatedAt: now
+      };
+      // 直接用 storage 层插入，绕过 save()「标题和正文都为空则拒绝」的限制
+      var notes = NotesApp.storage.getNotes().slice();
+      notes.push(note);
+      var res = NotesApp.storage.saveNotes(notes);
+      if (!res.ok) {
+        NotesApp.ui.toast(res.message, 'error');
+        return;
+      }
+      titleInput.value = '';
+      bodyInput.value = '';
+      currentNoteId = note.id;
+      NotesApp.storage.saveCurrentNoteId(note.id);
+      dirty = false;
+      lastSavedAt = now;
+      if (autosaveTimer) { clearTimeout(autosaveTimer); autosaveTimer = null; }
+      refreshStatus();
+      refreshDirectory();
+      titleInput.focus();
+    }
+    if (dirty) {
+      NotesApp.ui.confirm({
+        title: '放弃未保存内容？',
+        message: '当前内容尚未保存，确定放弃吗？',
+        danger: false,
+        confirmText: '放弃',
+        cancelText: '取消'
+      }).then(function (ok) { if (ok) doNew(); });
+    } else {
+      doNew();
+    }
+  }
+
+  /* 从目录打开某条笔记：加载到编辑器并设为当前笔记（保存即更新，不产生新快照）。 */
+  function openNote(note) {
+    if (currentNoteId === note.id) return; // 已打开，无需重载
+
+    function doOpen() {
+      titleInput.value = note.title || '';
+      bodyInput.value = note.content || '';
+      currentNoteId = note.id;
+      NotesApp.storage.saveCurrentNoteId(note.id);
+      dirty = false;
+      lastSavedAt = note.updatedAt;
+      if (autosaveTimer) { clearTimeout(autosaveTimer); autosaveTimer = null; }
+      refreshStatus();
+    }
+
+    if (dirty) {
+      NotesApp.ui.confirm({
+        title: '放弃未保存内容？',
+        message: '当前内容尚未保存，确定放弃吗？',
+        danger: false,
+        confirmText: '放弃',
+        cancelText: '取消'
+      }).then(function (ok) { if (ok) doOpen(); });
+    } else {
+      doOpen();
+    }
+  }
+
+  /* 外部（目录模块）删除笔记后同步：若删的是当前笔记则清空编辑器 */
+  function handleDeleted(id) {
+    if (currentNoteId === id) {
+      titleInput.value = '';
+      bodyInput.value = '';
+      currentNoteId = null;
+      NotesApp.storage.saveCurrentNoteId(null);
+      dirty = false;
+      lastSavedAt = null;
+      if (autosaveTimer) { clearTimeout(autosaveTimer); autosaveTimer = null; }
+      refreshStatus();
+    }
+  }
+
+  /* 外部（目录模块）清空全部后同步：清空编辑器 */
+  function handleCleared() {
+    titleInput.value = '';
+    bodyInput.value = '';
+    currentNoteId = null;
+    NotesApp.storage.saveCurrentNoteId(null);
+    dirty = false;
+    lastSavedAt = null;
+    if (autosaveTimer) { clearTimeout(autosaveTimer); autosaveTimer = null; }
+    refreshStatus();
+  }
+
+  /* 云同步用：是否有未保存内容 */
+  function isDirty() { return dirty; }
+
+  /* 云同步用：远端合并后按 storage 最新数据重填编辑器 */
+  function reloadCurrent() {
+    if (!currentNoteId) return;
+    var note = NotesApp.storage.getNoteById(currentNoteId);
+    if (!note) { handleDeleted(currentNoteId); return; }
+    titleInput.value = note.title || '';
+    bodyInput.value = note.content || '';
+    dirty = false;
+    lastSavedAt = note.updatedAt;
+    if (autosaveTimer) { clearTimeout(autosaveTimer); autosaveTimer = null; }
+    refreshStatus();
+  }
+
+  function init() {
+    titleInput = document.getElementById('note-title');
+    bodyInput = document.getElementById('note-body');
+    statusBadge = document.getElementById('notes-status-badge');
+    statusTime = document.getElementById('notes-status-time');
+    statusCount = document.getElementById('notes-status-count');
+
+    currentNoteId = NotesApp.storage.getCurrentNoteId();
+
+    // 启动时若存在当前笔记，则回填编辑器（刷新后保留上下文）
+    var cur = currentNoteId ? NotesApp.storage.getNoteById(currentNoteId) : null;
+    if (cur) {
+      titleInput.value = cur.title || '';
+      bodyInput.value = cur.content || '';
+      lastSavedAt = cur.updatedAt;
+    }
+
+    titleInput.addEventListener('input', markDirty);
+    bodyInput.addEventListener('input', markDirty);
+
+    document.getElementById('btn-save').addEventListener('click', function () {
+      var res = save({ auto: false });
+      if (!res.ok) NotesApp.ui.toast(res.message, 'error');
+    });
+
+    document.getElementById('btn-new').addEventListener('click', newNote);
+
+    refreshStatus();
+  }
+
+  NotesApp.notes = {
+    init: init,
+    save: save,
+    newNote: newNote,
+    openNote: openNote,
+    handleDeleted: handleDeleted,
+    handleCleared: handleCleared,
+    isDirty: isDirty,
+    reloadCurrent: reloadCurrent,
+    getCurrentNoteId: getCurrentNoteId
+  };
+})();
+
+</script>
+<script>
+/* history.js — 记事本左侧「切换目录」（笔记列表）：列出全部笔记、打开/切换、单条删除、清空全部、空状态。
+ * 依赖：storage.js、ui.js、notes.js
+ */
+(function () {
+  'use strict';
+  window.NotesApp = window.NotesApp || {};
+  var NotesApp = window.NotesApp;
+
+  var listEl = null;
+  var emptyEl = null;
+  var storageHintEl = null;
+  var clearAllBtn = null;
+
+  function titleOf(note) {
+    var t = String(note.title || '').trim();
+    return t ? t : '无标题';
+  }
+
+  function sortedNotes() {
+    var notes = NotesApp.storage.getNotes().slice();
+    notes.sort(function (a, b) { return b.updatedAt - a.updatedAt; });
+    return notes;
+  }
+
+  function render() {
+    var notes = sortedNotes();
+    var currentId = NotesApp.notes.getCurrentNoteId();
+
+    var usage = NotesApp.storage.estimateUsage();
+    storageHintEl.textContent = '已用约 ' + usage.kb + ' KB';
+
+    listEl.innerHTML = '';
+    listEl.hidden = notes.length === 0;
+    emptyEl.hidden = notes.length !== 0;
+    clearAllBtn.disabled = notes.length === 0;
+
+    for (var i = 0; i < notes.length; i++) {
+      listEl.appendChild(buildItem(notes[i], notes[i].id === currentId));
+    }
+  }
+
+  function buildItem(note, active) {
+    var ui = NotesApp.ui;
+    var item = document.createElement('div');
+    item.className = 'note-item' + (active ? ' active' : '');
+    item.dataset.id = note.id;
+    item.setAttribute('role', 'button');
+    item.setAttribute('tabindex', '0');
+
+    var row1 = document.createElement('div');
+    row1.className = 'row1';
+
+    var title = document.createElement('span');
+    title.className = 'n-title' + (titleOf(note) === '无标题' ? ' untitled' : '');
+    title.textContent = titleOf(note);
+
+    var delBtn = document.createElement('button');
+    delBtn.className = 'n-del';
+    delBtn.type = 'button';
+    delBtn.textContent = '×';
+    delBtn.title = '删除';
+    delBtn.setAttribute('aria-label', '删除「' + titleOf(note) + '」');
+    delBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      remove(note);
+    });
+
+    row1.appendChild(title);
+    row1.appendChild(delBtn);
+
+    var time = document.createElement('div');
+    time.className = 'n-time';
+    time.textContent = ui.formatTime(note.updatedAt);
+
+    item.appendChild(row1);
+    item.appendChild(time);
+
+    function open() { openNote(note); }
+    item.addEventListener('click', open);
+    item.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+    });
+
+    return item;
+  }
+
+  function openNote(note) {
+    NotesApp.notes.openNote(note);
+    render();
+  }
+
+  function remove(note) {
+    var ui = NotesApp.ui;
+    ui.confirm({
+      title: '删除这条笔记？',
+      message: '确定删除「' + titleOf(note) + '」吗？此操作不可撤销。',
+      danger: true,
+      confirmText: '删除',
+      cancelText: '取消'
+    }).then(function (ok) {
+      if (!ok) return;
+      var notes = NotesApp.storage.getNotes().filter(function (n) { return n.id !== note.id; });
+      var res = NotesApp.storage.saveNotes(notes);
+      if (!res.ok) { ui.toast(res.message, 'error'); return; }
+      NotesApp.notes.handleDeleted(note.id);
+      render();
+      ui.toast('已删除', 'success');
+    });
+  }
+
+  function clearAll() {
+    var ui = NotesApp.ui;
+    var count = NotesApp.storage.getNotes().length;
+    if (count === 0) return;
+    ui.confirm({
+      title: '清空全部笔记？',
+      message: '此操作不可撤销，将删除全部 ' + count + ' 条笔记。请输入 DELETE 以确认。',
+      danger: true,
+      requireInput: 'DELETE',
+      confirmText: '确认清空',
+      cancelText: '取消'
+    }).then(function (ok) {
+      if (!ok) return;
+      var res = NotesApp.storage.saveNotes([]);
+      if (!res.ok) { ui.toast(res.message, 'error'); return; }
+      NotesApp.notes.handleCleared();
+      render();
+      ui.toast('已清空全部笔记', 'success');
+    });
+  }
+
+  function init() {
+    listEl = document.getElementById('note-list');
+    emptyEl = document.getElementById('note-empty');
+    storageHintEl = document.getElementById('directory-storage-hint');
+    clearAllBtn = document.getElementById('btn-clear-all');
+
+    clearAllBtn.addEventListener('click', clearAll);
+  }
+
+  NotesApp.history = {
+    init: init,
+    render: render
+  };
+})();
+
+</script>
+<script>
+/* converter.js — Markdown → HTML（marked 渲染）→ Word 导出（方案 A：MHTML 风格 .doc）。
+ * 依赖：marked（lib/marked.min.js，UMD 全局 window.marked）、ui.js
+ */
+(function () {
+  'use strict';
+  window.NotesApp = window.NotesApp || {};
+  var NotesApp = window.NotesApp;
+
+  var sourceEl = null;
+  var previewEl = null;
+  var filenameHintEl = null;
+  var previewTimer = null;
+  var PREVIEW_DELAY = 300; // 实时预览防抖（PRD 4.1）
+
+  var EXAMPLE = [
+    '# 项目说明',
+    '',
+    '这是一个 **幻世界临时文本记录工具**，支持：',
+    '',
+    '- 记事本：记录与保存',
+    '- 左侧目录：切换与删除',
+    '- Markdown 转 Word：一键导出',
+    '',
+    '## 快速上手',
+    '',
+    '1. 双击 `index.html` 打开',
+    '2. 选择模块开始使用',
+    '',
+    '| 模块 | 状态 |',
+    '| --- | --- |',
+    '| 记事本 | ✅ 完成 |',
+    '| 左侧目录 | ✅ 完成 |',
+    '',
+    '> 数据仅保存在本机浏览器。',
+    '',
+    '```js',
+    '// 导出示例',
+    'const blob = new Blob([html], { type: \'application/msword\' });',
+    '```'
+  ].join('\n');
+
+  function markedAvailable() {
+    return typeof window !== 'undefined' && typeof window.marked !== 'undefined';
+  }
+
+  function renderMarkdown(md) {
+    // 启用 gfm（表格/删除线等）与 breaks（单换行转 <br>），PRD 2.3.3
+    return window.marked.parse(md, { gfm: true, breaks: true });
+  }
+
+  /* 提取首个 H1 标题，用于导出文件名 */
+  function firstH1(md) {
+    var lines = String(md || '').split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var m = lines[i].match(/^#\s+(.+?)\s*#*\s*$/);
+      if (m && m[1].trim()) return m[1].trim();
+    }
+    return null;
+  }
+
+  function sanitizeFilename(name) {
+    var s = String(name || '').replace(/[\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim();
+    return s || '文档';
+  }
+
+  function buildFileName(md, ts) {
+    var base = sanitizeFilename(firstH1(md) || '文档');
+    return base + '_' + NotesApp.ui.formatFileStamp(ts) + '.doc';
+  }
+
+  function updatePreview() {
+    if (!previewEl) return;
+    var md = sourceEl.value || '';
+
+    var hint = '';
+    if (md.trim() === '') {
+      hint = '';
+    } else {
+      hint = '导出文件名：' + buildFileName(md, Date.now());
+    }
+    if (filenameHintEl) filenameHintEl.textContent = hint;
+
+    if (md.trim() === '') {
+      previewEl.innerHTML = '';
+      previewEl.classList.add('is-empty');
+      previewEl.textContent = '预览区（输入 Markdown 后在此显示渲染结果）';
+      return;
+    }
+
+    if (!markedAvailable()) {
+      previewEl.classList.remove('is-empty');
+      previewEl.innerHTML = '<p style="color:var(--color-danger)">marked 库未加载，无法渲染预览（请联网加载 lib/marked.min.js）。</p>';
+      return;
+    }
+
+    var html;
+    try {
+      html = renderMarkdown(md);
+    } catch (e) {
+      previewEl.classList.remove('is-empty');
+      previewEl.innerHTML = '<p style="color:var(--color-danger)">渲染失败：' + NotesApp.ui.escapeHtml(e && e.message ? e.message : String(e)) + '</p>';
+      return;
+    }
+    previewEl.classList.remove('is-empty');
+    previewEl.innerHTML = html;
+  }
+
+  function schedulePreview() {
+    if (previewTimer) clearTimeout(previewTimer);
+    previewTimer = setTimeout(function () {
+      previewTimer = null;
+      updatePreview();
+    }, PREVIEW_DELAY);
+  }
+
+  function loadExample() {
+    sourceEl.value = EXAMPLE;
+    updatePreview();
+    sourceEl.focus();
+  }
+
+  function clear() {
+    sourceEl.value = '';
+    updatePreview();
+    sourceEl.focus();
+  }
+
+  /* 封装为 Word 可打开的 MHTML 风格文档（PRD 方案 A）。 */
+  function buildWordDocument(bodyHtml, title) {
+    var t = NotesApp.ui.escapeHtml(title);
+    return [
+      '<html xmlns:o="urn:schemas-microsoft-com:office:office"',
+      '      xmlns:w="urn:schemas-microsoft-com:office:word"',
+      '      xmlns="http://www.w3.org/TR/REC-html40">',
+      '<head>',
+      '<meta charset="utf-8">',
+      '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">',
+      '<title>' + t + '</title>',
+      '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->',
+      '<style>',
+      '  body { font-family: "Microsoft YaHei", "SimSun", "PingFang SC", Arial, sans-serif; font-size: 12pt; line-height: 1.6; color: #1f2329; }',
+      '  h1 { font-size: 22pt; margin: 12pt 0 8pt; }',
+      '  h2 { font-size: 16pt; margin: 14pt 0 6pt; }',
+      '  h3 { font-size: 13pt; margin: 10pt 0 4pt; }',
+      '  p { margin: 4pt 0; }',
+      '  ul, ol { margin: 4pt 0; padding-left: 24pt; }',
+      '  pre { background: #f1f3f5; border: 1px solid #e5e7eb; padding: 8pt 10pt; white-space: pre-wrap; word-wrap: break-word; font-family: Consolas, "Courier New", monospace; font-size: 10pt; }',
+      '  code { font-family: Consolas, "Courier New", monospace; background: #eef1fe; color: #4a6cf7; padding: 1pt 3pt; }',
+      '  pre code { background: none; color: inherit; padding: 0; }',
+      '  table { border-collapse: collapse; width: 100%; margin: 6pt 0; }',
+      '  th, td { border: 1px solid #d0d4db; padding: 4pt 8pt; font-size: 11pt; }',
+      '  th { background: #f1f3f5; font-weight: 600; }',
+      '  blockquote { border-left: 3pt solid #4a6cf7; background: #eef1fe; padding: 6pt 10pt; margin: 8pt 0; color: #5c6370; }',
+      '  a { color: #4a6cf7; }',
+      '  img { max-width: 100%; }',
+      '  hr { border: none; border-top: 1px solid #e5e7eb; margin: 10pt 0; }',
+      '</style>',
+      '</head>',
+      '<body>' + bodyHtml + '</body>',
+      '</html>'
+    ].join('\n');
+  }
+
+  function exportWord() {
+    var ui = NotesApp.ui;
+    var md = sourceEl.value || '';
+
+    if (md.trim() === '') {
+      ui.toast('请先输入 Markdown 内容', 'error');
+      return;
+    }
+    if (!markedAvailable()) {
+      ui.toast('marked 库未加载，无法导出（请联网加载 lib/marked.min.js）', 'error');
+      return;
+    }
+
+    var bodyHtml;
+    try {
+      bodyHtml = renderMarkdown(md);
+    } catch (e) {
+      ui.toast('渲染失败：' + (e && e.message ? e.message : String(e)), 'error');
+      return;
+    }
+
+    var title = firstH1(md) || '文档';
+    var fileName = buildFileName(md, Date.now());
+    var fullHtml = buildWordDocument(bodyHtml, title);
+
+    try {
+      // 内容前加 UTF-8 BOM，type 用 application/msword，扩展名 .doc（PRD 方案 A）
+      var blob = new Blob(['\ufeff' + fullHtml], { type: 'application/msword' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      ui.toast('已开始下载：' + fileName, 'success');
+    } catch (e) {
+      ui.toast('导出失败：' + (e && e.message ? e.message : String(e)), 'error');
+    }
+  }
+
+  /* 一键复制预览区内容：富文本（text/html）+ 纯文本（text/plain），按优先级降级。 */
+  function copyPreview() {
+    var ui = NotesApp.ui;
+    var md = sourceEl.value || '';
+
+    if (md.trim() === '' || previewEl.classList.contains('is-empty')) {
+      ui.toast('没有可复制的内容', 'error');
+      return;
+    }
+
+    var html = previewEl.innerHTML;
+    var text = previewEl.innerText || previewEl.textContent || '';
+
+    function ok() { ui.toast('已复制', 'success'); }
+    function fail(msg) { ui.toast('复制失败：' + msg, 'error'); }
+
+    /* c) 兜底：execCommand + 隐藏 textarea（file:// 双击打开下可用） */
+    function execFallback(reason) {
+      var okExec = false;
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        ta.style.top = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        okExec = document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch (e) {
+        okExec = false;
+      }
+      if (okExec) { ok(); } else { fail(reason || '浏览器不支持复制'); }
+    }
+
+    /* b) writeText 纯文本 */
+    function writeTextFallback(reason) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(ok, function () { execFallback(reason || '写入剪贴板失败'); });
+        return;
+      }
+      execFallback(reason);
+    }
+
+    /* a) write + ClipboardItem：同时写 text/html（富文本）与 text/plain（纯文本） */
+    if (navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== 'undefined') {
+      try {
+        var item = new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([text], { type: 'text/plain' })
+        });
+        navigator.clipboard.write([item]).then(ok, function () { writeTextFallback('富文本复制失败'); });
+        return;
+      } catch (e) {
+        /* ClipboardItem 构造失败，降级到 writeText/execCommand */
+      }
+    }
+    writeTextFallback(null);
+  }
+
+  function init() {
+    sourceEl = document.getElementById('md-source');
+    previewEl = document.getElementById('md-preview');
+    filenameHintEl = document.getElementById('filename-hint');
+
+    sourceEl.addEventListener('input', schedulePreview);
+
+    document.getElementById('btn-example').addEventListener('click', loadExample);
+    document.getElementById('btn-convert-clear').addEventListener('click', clear);
+    document.getElementById('btn-preview').addEventListener('click', function () {
+      if (previewTimer) { clearTimeout(previewTimer); previewTimer = null; }
+      updatePreview();
+      NotesApp.ui.toast('预览已更新', 'info');
+    });
+    document.getElementById('btn-export').addEventListener('click', exportWord);
+    document.getElementById('btn-copy-preview').addEventListener('click', copyPreview);
+
+    updatePreview();
+  }
+
+  NotesApp.converter = {
+    init: init,
+    updatePreview: updatePreview,
+    exportWord: exportWord,
+    copyPreview: copyPreview
+  };
+})();
+
+</script>
+<script>
+/* cloud.js — GitHub 云同步：把笔记存进自己的仓库（默认 data/notes.json），换设备输 token 即可读回。
+ * 依赖：storage.js、ui.js、notes.js、history.js
+ * 存储：localStorage notes.app.cloud（配置）、notes.app.cloudTombstones（删除墓碑）
+ * 说明：token 只保存在本机浏览器，建议使用只授权该仓库 Contents 读写的 fine-grained token。
+ */
+(function () {
+  'use strict';
+  window.NotesApp = window.NotesApp || {};
+  var NotesApp = window.NotesApp;
+
+  var CFG_KEY = 'notes.app.cloud';
+  var TOMB_KEY = 'notes.app.cloudTombstones';
+  var API = 'https://api.github.com';
+  var PUSH_DELAY = 1500;
+
+  var DEFAULTS = {
+    token: '',
+    owner: 'romantic123fly',
+    repo: 'hsj-notepad',
+    path: 'data/notes.json',
+    branch: 'main',
+    auto: true,
+    lastSync: 0
+  };
+
+  var cfgMem = null;
+  var syncing = false;
+  var applying = false;
+  var pushTimer = null;
+  var dotEl = null;
+  var modalOverlay = null;
+
+  /* ---------- 配置读写 ---------- */
+
+  function loadCfg() {
+    if (cfgMem) return cfgMem;
+    var raw = null;
+    try { raw = localStorage.getItem(CFG_KEY); } catch (e) { raw = null; }
+    var parsed = null;
+    try { parsed = raw ? JSON.parse(raw) : null; } catch (e) { parsed = null; }
+    cfgMem = {};
+    for (var k in DEFAULTS) {
+      if (Object.prototype.hasOwnProperty.call(DEFAULTS, k)) {
+        cfgMem[k] = parsed && parsed[k] != null ? parsed[k] : DEFAULTS[k];
+      }
+    }
+    return cfgMem;
+  }
+
+  function saveCfg(c) {
+    cfgMem = c;
+    try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); return true; } catch (e) { return false; }
+  }
+
+  function isConfigured() {
+    var c = loadCfg();
+    return !!(c.token && c.owner && c.repo && c.path);
+  }
+
+  function loadTombs() {
+    try {
+      var t = JSON.parse(localStorage.getItem(TOMB_KEY) || '{}');
+      return t && typeof t === 'object' ? t : {};
+    } catch (e) { return {}; }
+  }
+
+  function saveTombs(t) {
+    try { localStorage.setItem(TOMB_KEY, JSON.stringify(t)); } catch (e) { /* 忽略 */ }
+  }
+
+  /* ---------- 编码工具 ---------- */
+
+  function b64encode(str) {
+    var bytes = new TextEncoder().encode(str);
+    var bin = '';
+    for (var i = 0; i < bytes.length; i += 0x8000) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(bin);
+  }
+
+  function b64decode(b64) {
+    var bin = atob(String(b64).replace(/\s/g, ''));
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  /* ---------- GitHub API ---------- */
+
+  function request(c, method, url, body) {
+    var headers = {
+      'Accept': 'application/vnd.github+json',
+      'Authorization': 'Bearer ' + c.token,
+      'X-GitHub-Api-Version': '2022-11-28'
+    };
+    var opts = { method: method, headers: headers };
+    if (body != null) {
+      headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(body);
+    }
+    return fetch(url, opts).then(function (res) {
+      return res.text().then(function (text) {
+        var json = null;
+        try { json = text ? JSON.parse(text) : null; } catch (e) { json = null; }
+        if (!res.ok) {
+          var msg = (json && json.message) ? json.message : ('HTTP ' + res.status);
+          var err = new Error(msg);
+          err.status = res.status;
+          throw err;
+        }
+        return json;
+      });
+    });
+  }
+
+  function contentsUrl(c) {
+    return API + '/repos/' + encodeURIComponent(c.owner) + '/' + encodeURIComponent(c.repo) +
+      '/contents/' + String(c.path).split('/').map(encodeURIComponent).join('/') +
+      '?ref=' + encodeURIComponent(c.branch || 'main');
+  }
+
+  function pull(c) {
+    return request(c, 'GET', contentsUrl(c)).then(function (json) {
+      var data;
+      try {
+        data = JSON.parse(b64decode(json.content));
+      } catch (e) {
+        throw new Error('远端文件不是有效 JSON');
+      }
+      return {
+        sha: json.sha,
+        data: {
+          notes: Array.isArray(data.notes) ? data.notes : [],
+          tombstones: data.tombstones && typeof data.tombstones === 'object' ? data.tombstones : {}
+        }
+      };
+    }).catch(function (err) {
+      if (err && err.status === 404) {
+        return { sha: null, data: { notes: [], tombstones: {} } };
+      }
+      throw err;
+    });
+  }
+
+  function push(c, data, sha) {
+    var body = {
+      message: 'sync: notes ' + new Date().toISOString(),
+      content: b64encode(JSON.stringify(data)),
+      branch: c.branch || 'main'
+    };
+    if (sha) body.sha = sha;
+    return request(c, 'PUT', contentsUrl(c), body);
+  }
+
+  /* ---------- 合并 ---------- */
+
+  function merge(localNotes, localTombs, remoteNotes, remoteTombs) {
+    var tombs = {};
+    var k;
+    for (k in remoteTombs) { if (Object.prototype.hasOwnProperty.call(remoteTombs, k)) tombs[k] = remoteTombs[k]; }
+    for (k in localTombs) {
+      if (!Object.prototype.hasOwnProperty.call(localTombs, k)) continue;
+      if (!tombs[k] || localTombs[k] > tombs[k]) tombs[k] = localTombs[k];
+    }
+
+    var map = {};
+    (remoteNotes || []).forEach(function (n) { if (n && n.id) map[n.id] = n; });
+    (localNotes || []).forEach(function (n) {
+      if (!n || !n.id) return;
+      var cur = map[n.id];
+      if (!cur || (n.updatedAt || 0) > (cur.updatedAt || 0)) map[n.id] = n;
+    });
+
+    var notes = [];
+    Object.keys(map).forEach(function (id) {
+      var n = map[id];
+      var t = tombs[id];
+      if (t && (n.updatedAt || 0) <= t) return; // 已删除且没有更新的版本
+      notes.push(n);
+    });
+    notes.sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+    return { notes: notes, tombstones: tombs };
+  }
+
+  /* 清理过旧墓碑（30 天前，且对应笔记已不存在） */
+  function pruneTombs(tombs, notes) {
+    var alive = {};
+    (notes || []).forEach(function (n) { if (n && n.id) alive[n.id] = true; });
+    var cutoff = Date.now() - 30 * 24 * 3600 * 1000;
+    var out = {};
+    Object.keys(tombs).forEach(function (id) {
+      if (!alive[id] && tombs[id] < cutoff) return;
+      out[id] = tombs[id];
+    });
+    return out;
+  }
+
+  /* ---------- 状态展示 ---------- */
+
+  function setDot(state, title) {
+    if (!dotEl) return;
+    dotEl.className = 'cloud-dot' + (state ? ' ' + state : '');
+    if (title != null) dotEl.title = title;
+  }
+
+  function statusText() {
+    var c = loadCfg();
+    if (!isConfigured()) return '未配置：点「保存配置」后开始同步';
+    if (syncing) return '同步中…';
+    if (c.lastSync) return '上次同步：' + NotesApp.ui.formatTime(c.lastSync);
+    return '已配置，尚未同步';
+  }
+
+  /* ---------- 同步主流程 ---------- */
+
+  function sync(opts) {
+    opts = opts || {};
+    var c = loadCfg();
+    if (!isConfigured()) {
+      if (!opts.silent) {
+        NotesApp.ui.toast('请先填写 token 并保存配置', 'error');
+        openModal();
+      }
+      return Promise.resolve({ ok: false, reason: 'not-configured' });
+    }
+    if (syncing) return Promise.resolve({ ok: false, reason: 'busy' });
+    // 有未保存内容时不动编辑器，稍后重试
+    if (NotesApp.notes && NotesApp.notes.isDirty && NotesApp.notes.isDirty()) {
+      if (!opts.silent) NotesApp.ui.toast('有未保存内容，请先保存再同步', 'error');
+      return Promise.resolve({ ok: false, reason: 'dirty' });
+    }
+
+    syncing = true;
+    setDot('busy', '同步中');
+    if (modalOverlay) updateModalStatus('同步中…');
+
+    return pull(c).then(function (remote) {
+      var local = NotesApp.storage.getNotes().slice();
+      var merged = merge(local, loadTombs(), remote.data.notes, remote.data.tombstones);
+      merged.tombstones = pruneTombs(merged.tombstones, merged.notes);
+
+      var localJson = JSON.stringify(local);
+      var changedLocal = JSON.stringify(merged.notes) !== localJson;
+      if (changedLocal) {
+        applying = true;
+        var res = NotesApp.storage.saveNotes(merged.notes);
+        applying = false;
+        if (!res.ok) throw new Error(res.message);
+        NotesApp.history.render();
+        if (NotesApp.notes.reloadCurrent) NotesApp.notes.reloadCurrent();
+      }
+      saveTombs(merged.tombstones);
+
+      var remoteJson = JSON.stringify({ notes: remote.data.notes, tombstones: remote.data.tombstones });
+      var mergedJson = JSON.stringify({ notes: merged.notes, tombstones: merged.tombstones });
+      var needPush = mergedJson !== remoteJson;
+
+      if (!needPush) return { ok: true, pushed: false, pulled: changedLocal };
+
+      var payload = { version: 1, updatedAt: Date.now(), notes: merged.notes, tombstones: merged.tombstones };
+      return push(c, payload, remote.sha).then(function () {
+        return { ok: true, pushed: true, pulled: changedLocal };
+      });
+    }).then(function (result) {
+      c.lastSync = Date.now();
+      saveCfg(c);
+      setDot('ok', statusText());
+      if (modalOverlay) updateModalStatus('同步完成 · ' + NotesApp.ui.formatTime(c.lastSync));
+      if (!opts.silent) {
+        var msg = '云同步完成';
+        if (result && result.pushed && result.pulled) msg = '云同步完成（已合并双向改动）';
+        else if (result && result.pushed) msg = '云同步完成（已上传本地改动）';
+        else if (result && result.pulled) msg = '云同步完成（已拉取远端改动）';
+        NotesApp.ui.toast(msg, 'success');
+      }
+      syncing = false;
+      return result || { ok: true };
+    }).catch(function (err) {
+      syncing = false;
+      var msg = err && err.message ? err.message : '未知错误';
+      setDot('err', msg);
+      if (modalOverlay) updateModalStatus('同步失败：' + msg);
+      if (!opts.silent) NotesApp.ui.toast('同步失败：' + msg, 'error');
+      return { ok: false, error: msg };
+    });
+  }
+
+  function schedulePush() {
+    var c = loadCfg();
+    if (!isConfigured() || !c.auto) return;
+    if (pushTimer) clearTimeout(pushTimer);
+    pushTimer = setTimeout(function () {
+      pushTimer = null;
+      sync({ silent: true });
+    }, PUSH_DELAY);
+  }
+
+  /* 包装 storage.saveNotes：记录删除墓碑，并在保存后触发自动同步 */
+  function wrapStorage() {
+    var storage = NotesApp.storage;
+    var original = storage.saveNotes;
+    if (!original || original.__cloudWrapped) return;
+    var wrapped = function (notes) {
+      var prev = storage.getNotes();
+      var prevIds = {};
+      var nextIds = {};
+      var i;
+      for (i = 0; i < prev.length; i++) prevIds[prev[i].id] = true;
+      for (i = 0; i < (notes || []).length; i++) if (notes[i] && notes[i].id) nextIds[notes[i].id] = true;
+      var tombs = loadTombs();
+      var now = Date.now();
+      var removed = false;
+      for (var id in prevIds) {
+        if (Object.prototype.hasOwnProperty.call(prevIds, id) && !nextIds[id]) {
+          tombs[id] = now;
+          removed = true;
+        }
+      }
+      if (removed) saveTombs(tombs);
+
+      var res = original.call(storage, notes);
+      if (res && res.ok && !applying) schedulePush();
+      return res;
+    };
+    wrapped.__cloudWrapped = true;
+    storage.saveNotes = wrapped;
+  }
+
+  /* ---------- 配置弹窗 ---------- */
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  function updateModalStatus(text) {
+    var s = modalOverlay && modalOverlay.querySelector('.cloud-status');
+    if (s) s.textContent = text;
+  }
+
+  function closeModal() {
+    if (modalOverlay && modalOverlay.parentNode) modalOverlay.parentNode.removeChild(modalOverlay);
+    modalOverlay = null;
+  }
+
+  function openModal() {
+    if (modalOverlay) { updateModalStatus(statusText()); return; }
+    var c = loadCfg();
+    var root = document.getElementById('modal-root');
+    if (!root) return;
+
+    var overlay = el('div', 'modal-overlay');
+    var modal = el('div', 'modal cloud-form');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.appendChild(el('h3', '', '云同步设置'));
+
+    function row(labelText, input, hint) {
+      var wrap = el('div', 'form-row');
+      wrap.appendChild(el('label', '', labelText));
+      wrap.appendChild(input);
+      if (hint) wrap.appendChild(el('div', 'cloud-note', hint));
+      modal.appendChild(wrap);
+      return input;
+    }
+
+    var tokenInput = el('input', 'input');
+    tokenInput.type = 'password';
+    tokenInput.autocomplete = 'off';
+    tokenInput.placeholder = 'ghp_… 或 github_pat_…';
+    tokenInput.value = c.token || '';
+    row('GitHub Token', tokenInput, '只存在本机浏览器。建议用 fine-grained token，仅授权该仓库 Contents: Read and write。');
+
+    var repoOwner = el('input', 'input');
+    repoOwner.type = 'text';
+    repoOwner.value = c.owner || DEFAULTS.owner;
+    row('仓库 owner', repoOwner);
+
+    var repoName = el('input', 'input');
+    repoName.type = 'text';
+    repoName.value = c.repo || DEFAULTS.repo;
+    row('仓库名', repoName);
+
+    var filePath = el('input', 'input');
+    filePath.type = 'text';
+    filePath.value = c.path || DEFAULTS.path;
+    row('存储文件路径', filePath, '笔记会写入该文件（换设备时填同一路径即可读回）。');
+
+    var autoWrap = el('label', 'cloud-check');
+    var autoInput = el('input');
+    autoInput.type = 'checkbox';
+    autoInput.checked = c.auto !== false;
+    autoWrap.appendChild(autoInput);
+    autoWrap.appendChild(document.createTextNode('保存笔记后自动同步'));
+    modal.appendChild(autoWrap);
+
+    var status = el('div', 'cloud-status', statusText());
+    modal.appendChild(status);
+
+    var actions = el('div', 'actions');
+    var saveBtn = el('button', 'btn btn-primary btn-sm', '保存配置');
+    saveBtn.type = 'button';
+    var syncBtn = el('button', 'btn btn-secondary btn-sm', '立即同步');
+    syncBtn.type = 'button';
+    var closeBtn = el('button', 'btn btn-secondary btn-sm', '关闭');
+    closeBtn.type = 'button';
+    actions.appendChild(saveBtn);
+    actions.appendChild(syncBtn);
+    actions.appendChild(closeBtn);
+    modal.appendChild(actions);
+
+    overlay.appendChild(modal);
+    root.appendChild(overlay);
+    modalOverlay = overlay;
+    tokenInput.focus();
+
+    function readForm() {
+      return {
+        token: tokenInput.value.trim(),
+        owner: repoOwner.value.trim(),
+        repo: repoName.value.trim(),
+        path: filePath.value.trim().replace(/^\/+/, ''),
+        branch: c.branch || 'main',
+        auto: autoInput.checked,
+        lastSync: c.lastSync || 0
+      };
+    }
+
+    saveBtn.addEventListener('click', function () {
+      var next = readForm();
+      if (!next.token) { NotesApp.ui.toast('请填写 token', 'error'); return; }
+      if (!next.owner || !next.repo || !next.path) { NotesApp.ui.toast('仓库信息不完整', 'error'); return; }
+      saveCfg(next);
+      updateModalStatus(statusText());
+      setDot(isConfigured() ? 'ok' : '', statusText());
+      NotesApp.ui.toast('配置已保存', 'success');
+    });
+
+    syncBtn.addEventListener('click', function () {
+      var next = readForm();
+      if (!next.token) { NotesApp.ui.toast('请填写 token', 'error'); return; }
+      saveCfg(next);
+      sync({ silent: false });
+    });
+
+    closeBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+    document.addEventListener('keydown', function onKey(e) {
+      if (e.key === 'Escape') { document.removeEventListener('keydown', onKey); closeModal(); }
+    });
+  }
+
+  /* ---------- 初始化 ---------- */
+
+  function init() {
+    wrapStorage();
+    dotEl = document.getElementById('cloud-dot');
+    var btn = document.getElementById('btn-cloud');
+    if (btn) btn.addEventListener('click', openModal);
+    setDot(isConfigured() ? 'ok' : '', statusText());
+
+    var c = loadCfg();
+    if (isConfigured() && c.auto) {
+      setTimeout(function () { sync({ silent: true }); }, 1200);
+    }
+  }
+
+  NotesApp.cloud = {
+    init: init,
+    sync: sync,
+    openModal: openModal,
+    isConfigured: isConfigured,
+    schedulePush: schedulePush
+  };
+})();
+
+</script>
+<script>
+/* app.js — 应用入口：启动初始化、两模块 Tab 路由、主题切换、快捷键。
+ * 依赖：ui.js、storage.js、notes.js、history.js、converter.js
+ */
+(function () {
+  'use strict';
+  window.NotesApp = window.NotesApp || {};
+  var NotesApp = window.NotesApp;
+
+  var TAB_ORDER = ['notes', 'convert'];
+  var currentTab = 'notes';
+
+  var tabButtons = {};
+  var panels = {};
+
+  function switchTab(name) {
+    if (TAB_ORDER.indexOf(name) === -1) return;
+    currentTab = name;
+
+    TAB_ORDER.forEach(function (t) {
+      var active = t === name;
+      tabButtons[t].classList.toggle('active', active);
+      tabButtons[t].setAttribute('aria-selected', active ? 'true' : 'false');
+      tabButtons[t].setAttribute('tabindex', active ? '0' : '-1');
+      panels[t].hidden = !active;
+    });
+
+    // 进入记事本时刷新目录（数据可能已变化）
+    if (name === 'notes') {
+      NotesApp.history.render();
+    }
+  }
+
+  function moveTabFocus(delta) {
+    var idx = TAB_ORDER.indexOf(currentTab);
+    var next = (idx + delta + TAB_ORDER.length) % TAB_ORDER.length;
+    switchTab(TAB_ORDER[next]);
+    tabButtons[TAB_ORDER[next]].focus();
+  }
+
+  function applyTheme(theme) {
+    var dark = theme === 'dark';
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    var sw = document.getElementById('theme-switch');
+    if (sw) sw.checked = dark;
+  }
+
+  function initTheme() {
+    var settings = NotesApp.storage.getSettings() || {};
+    applyTheme(settings.theme === 'dark' ? 'dark' : 'light');
+    document.getElementById('theme-switch').addEventListener('change', function (e) {
+      var theme = e.target.checked ? 'dark' : 'light';
+      applyTheme(theme);
+      var s = NotesApp.storage.getSettings() || {};
+      s.theme = theme;
+      NotesApp.storage.saveSettings(s);
+    });
+  }
+
+  function initTabs() {
+    TAB_ORDER.forEach(function (t) {
+      tabButtons[t] = document.getElementById('tab-' + t);
+      panels[t] = document.getElementById('panel-' + t);
+      tabButtons[t].addEventListener('click', function () { switchTab(t); });
+      tabButtons[t].addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); moveTabFocus(1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); moveTabFocus(-1); }
+      });
+    });
+  }
+
+  function initShortcuts() {
+    document.addEventListener('keydown', function (e) {
+      var mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+
+      var key = e.key.toLowerCase();
+
+      if (key === 's') {
+        e.preventDefault();
+        if (currentTab === 'notes') {
+          var res = NotesApp.notes.save({ auto: false });
+          if (!res.ok) NotesApp.ui.toast(res.message, 'error');
+        }
+      } else if (key === 'n') {
+        e.preventDefault();
+        if (currentTab === 'notes') {
+          NotesApp.notes.newNote();
+        }
+      }
+    });
+  }
+
+  function init() {
+    var res = NotesApp.storage.init();
+    initTabs();
+    initTheme();
+    NotesApp.notes.init();
+    NotesApp.history.init();
+    NotesApp.converter.init();
+    if (NotesApp.cloud) NotesApp.cloud.init();
+    initShortcuts();
+
+    switchTab('notes');
+
+    if (res.corrupted) {
+      NotesApp.ui.toast('本地数据异常，已按空数据启动', 'error');
+    }
+  }
+
+  NotesApp.app = {
+    init: init,
+    switchTab: switchTab,
+    getCurrentTab: function () { return currentTab; }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+
+</script>
+</body>
+</html>
