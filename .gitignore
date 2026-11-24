@@ -1,0 +1,17 @@
+# 操作系统
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# 编辑器 / IDE
+.vscode/
+.idea/
+*.swp
+*.sublime-workspace
+
+# 日志与临时文件
+*.log
+*.tmp
+
+# 本地部署/推送凭证（绝不提交）
+.deploy-ssh/

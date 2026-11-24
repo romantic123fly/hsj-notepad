@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>幻世界临时文本记录工具</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-brand">
+    <span class="logo" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    </span>
+    幻世界临时文本记录工具
+  </div>
+
+  <nav class="tabs" role="tablist" aria-label="模块导航">
+    <button class="tab active" data-tab="notes" id="tab-notes" role="tab" aria-selected="true" aria-controls="panel-notes">记事本</button>
+    <button class="tab" data-tab="convert" id="tab-convert" role="tab" aria-selected="false" aria-controls="panel-convert" tabindex="-1">Markdown 转 Word</button>
+  </nav>
+
+  <label class="theme-toggle" title="切换亮/暗主题">
+    <span>暗色</span>
+    <input type="checkbox" id="theme-switch">
+    <span class="switch"></span>
+  </label>
+</header>
+
+<main class="app-main">
+
+  <!-- ===== 模块一：记事本（左侧目录 + 右侧编辑器） ===== -->
+  <section class="panel active panel-notes" data-panel="notes" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes">
+    <div class="notes-layout">
+      <aside class="directory">
+        <div class="directory-head">
+          <button class="btn btn-primary" id="btn-new" type="button">＋ 新建</button>
+        </div>
+
+        <div class="directory-list" id="note-list"></div>
+
+        <div class="directory-empty" id="note-empty" hidden>
+          <div class="icon" aria-hidden="true">📝</div>
+          <div class="t1">暂无笔记</div>
+          <div class="t2">点击上方「＋ 新建」开始记录</div>
+        </div>
+
+        <div class="directory-foot">
+          <span class="storage-hint" id="directory-storage-hint"></span>
+          <button class="btn btn-danger btn-sm" id="btn-clear-all" type="button">清空全部</button>
+        </div>
+      </aside>
+
+      <div class="editor card">
+        <div class="toolbar">
+          <button class="btn btn-primary" id="btn-save" type="button">保存</button>
+        </div>
+
+        <label class="sr-only" for="note-title">标题</label>
+        <input class="input note-title" id="note-title" type="text" placeholder="无标题" autocomplete="off">
+
+        <label class="sr-only" for="note-body">正文</label>
+        <textarea class="textarea note-body" id="note-body" placeholder="在这里输入正文…"></textarea>
+
+        <div class="status-bar" id="notes-status">
+          <span class="badge saved" id="notes-status-badge">已保存</span>
+          <span class="time" id="notes-status-time"></span>
+          <span id="notes-status-count">· 0 字</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 模块二：Markdown → Word ===== -->
+  <section class="panel panel-convert" data-panel="convert" id="panel-convert" role="tabpanel" aria-labelledby="tab-convert" hidden>
+    <div class="convert-toolbar">
+      <button class="btn btn-secondary btn-sm" id="btn-example" type="button">示例</button>
+      <button class="btn btn-secondary btn-sm" id="btn-convert-clear" type="button">清空</button>
+      <button class="btn btn-secondary btn-sm" id="btn-preview" type="button">预览</button>
+      <button class="btn btn-secondary btn-sm" id="btn-copy-preview" type="button">复制</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" id="btn-export" type="button">导出 Word (.doc)</button>
+    </div>
+
+    <div class="convert-grid">
+      <div class="convert-pane">
+        <div class="pane-label">Markdown 源码</div>
+        <textarea class="textarea md-source" id="md-source" placeholder="在这里输入或粘贴 Markdown…"></textarea>
+      </div>
+      <div class="convert-pane">
+        <div class="pane-label">预览</div>
+        <div class="preview-wrap">
+          <div class="preview page" id="md-preview"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="filename-hint" id="filename-hint"></div>
+  </section>
+
+</main>
+
+<footer class="app-footer">数据仅保存在本机浏览器（localStorage），清除浏览器站点数据会导致笔记丢失。</footer>
+
+<div class="toast-container" id="toast-container" aria-live="polite"></div>
+<div class="modal-root" id="modal-root"></div>
+
+<script src="lib/marked.min.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/notes.js"></script>
+<script src="js/history.js"></script>
+<script src="js/converter.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
